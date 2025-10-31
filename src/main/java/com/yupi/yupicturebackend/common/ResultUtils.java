@@ -1,6 +1,6 @@
-package com.yupi.backendinittemplate.common;
+package com.yupi.yupicturebackend.common;
 
-import com.yupi.backendinittemplate.exception.ErrorCode;
+import com.yupi.yupicturebackend.exception.ErrorCode;
 
 /**
  * 响应结果工具类

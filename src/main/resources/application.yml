@@ -10,7 +10,7 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://192.168.0.103:3306/yu_picture?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=GMT%2B8
-    username: yu_picture
+    username: root
     password: 123456
 
 # MyBatis-Plus 配置
@@ -39,4 +39,4 @@ knife4j:
         group-name: 默认分组
         api-rule: package
         api-rule-resources:
-          - com.yupi.backendinittemplate.controller # 接口位置为controller包
+          - com.yupi.yupicturebackend.controller # 接口位置为controller包

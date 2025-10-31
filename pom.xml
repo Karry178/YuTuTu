@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.yupi</groupId>
-    <artifactId>backend-init-template</artifactId>
+    <artifactId>yu-picture-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>Yu-picture-backend</name>
     <description>Yu-picture-backend</description>
@@ -95,8 +95,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring-boot.version}</version>
                 <configuration>
-                    <mainClass>com.yupi.backendinittemplate.YuPictureBackendApplication</mainClass>
-                    <skip>true</skip>
+                    <mainClass>com.yupi.yupicturebackend.YuPictureBackendApplication</mainClass>
                 </configuration>
                 <executions>
                     <execution>

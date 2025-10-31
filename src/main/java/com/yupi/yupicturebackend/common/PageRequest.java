@@ -1,4 +1,4 @@
-package com.yupi.backendinittemplate.common;
+package com.yupi.yupicturebackend.common;
 
 import lombok.Data;
 

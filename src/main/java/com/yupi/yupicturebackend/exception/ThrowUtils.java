@@ -1,4 +1,4 @@
-package com.yupi.backendinittemplate.exception;
+package com.yupi.yupicturebackend.exception;
 
 /**
  * 异常处理工具类

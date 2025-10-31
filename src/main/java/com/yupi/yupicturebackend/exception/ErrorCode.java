@@ -1,4 +1,4 @@
-package com.yupi.backendinittemplate.exception;
+package com.yupi.yupicturebackend.exception;
 
 import lombok.Getter;
 
