@@ -1,0 +1,42 @@
+server:
+  port: 8123
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: yu-picture-backend
+    # 数据库配置
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://192.168.0.103:3306/yu_picture?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=GMT%2B8
+    username: yu_picture
+    password: 123456
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  configuration:
+    # MyBatis 配置
+    map-underscore-to-camel-case: false
+    # 仅在开发环境打印日志
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      # 逻辑删除字段 -> 不会直接删除数据，而是把is_delete字段设置为1，0表示未删除，1表示已删除
+      logic-delete-field: isDelete # 全局逻辑删除的实体字段名
+      logic-delete-value: 1 # 逻辑已删除值(默认为1)
+      logic-not-delete-value: 0 # 逻辑未删除值(默认为0)
+
+# Knife4j - 接口文档配置
+knife4j:
+  enable: true
+  openapi:
+    title: 接口文档
+    version: v1.0
+    # 最重要的配置 - 接口分组
+    group:
+      default:
+        group-name: 默认分组
+        api-rule: package
+        api-rule-resources:
+          - com.yupi.backendinittemplate.controller # 接口位置为controller包
