@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/")
 public class MainController {
 
-    @GetMapping("/health")
+    @GetMapping(value = "/health", produces = "application/json")
     public BaseResponse<String> health() {
         return ResultUtils.success("ok");
     }

@@ -36,7 +36,6 @@ knife4j:
     # 最重要的配置 - 接口分组
     group:
       default:
-        group-name: 默认分组
         api-rule: package
         api-rule-resources:
           - com.yupi.yupicturebackend.controller # 接口位置为controller包

@@ -1,6 +1,7 @@
 package com.yupi.yupicturebackend.common;
 
 import com.yupi.yupicturebackend.exception.ErrorCode;
+import lombok.Data;
 
 import java.io.Serializable;
 
@@ -9,6 +10,7 @@ import java.io.Serializable;
  * @param <T>
  * @author Karry178
  */
+@Data
 public class BaseResponse<T> implements Serializable {
 
     private int code;
