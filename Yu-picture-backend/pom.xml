@@ -64,8 +64,16 @@
             <version>3.5.14</version>
         </dependency>
 
+        <!-- 引入MyBatis-Plus的分页管理依赖 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser-4.9</artifactId>
+        </dependency>
+
 
     </dependencies>
+
+    <!-- 依赖管理 -->
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -75,8 +83,18 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
+            <!-- MyBatis-Plus 依赖管理，目的是实现MyBatis-Plus的分页管理功能 -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-bom</artifactId>
+                <version>3.5.14</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
+
 
     <build>
         <plugins>
