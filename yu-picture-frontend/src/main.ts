@@ -7,6 +7,7 @@ import router from './router'
 // 引入 Ant Design Vue
 import Antd from 'ant-design-vue';
 import 'ant-design-vue/dist/reset.css';
+import '@/access.ts'
 
 
 // main.ts 是全局注册组件的入口文件
