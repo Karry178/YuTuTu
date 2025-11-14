@@ -1,0 +1,68 @@
+package com.yupi.yupicturebackend.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.yupi.yupicturebackend.model.dto.picture.PictureQueryRequest;
+import com.yupi.yupicturebackend.model.dto.picture.PictureUploadRequest;
+import com.yupi.yupicturebackend.model.entity.Picture;
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.yupi.yupicturebackend.model.entity.User;
+import com.yupi.yupicturebackend.model.vo.PictureVO;
+import org.springframework.web.multipart.MultipartFile;
+
+import javax.servlet.http.HttpServletRequest;
+
+/**
+ * @author 17832
+ * @description 针对表【picture(图片)】的数据库操作Service
+ * @createDate 2025-11-10 22:41:52
+ */
+public interface PictureService extends IService<Picture> {
+
+
+    /**
+     * 基本的图片数据校验
+     * @param picture 上传的图
+     */
+    public void validPicture(Picture picture);
+
+
+    /**
+     * 登录用户-上传图片
+     *
+     * @param multipartFile        前端传来的上传的图片
+     * @param pictureUploadRequest 用户上传图片请求体，里面只有id，方便修改图片
+     * @param loginUser            登录用户-目的是判断用户有无权限上传图片
+     * @return
+     */
+    PictureVO uploadPicture(MultipartFile multipartFile, PictureUploadRequest pictureUploadRequest, User loginUser);
+
+
+    /**
+     * 获取查询图片对象
+     *
+     * @param pictureQueryRequest 图片查询请求
+     * @return
+     */
+    QueryWrapper<Picture> getQueryWrapper(PictureQueryRequest pictureQueryRequest);
+
+
+    /**
+     * 获取单个图片的封装 - 返回VO类
+     *
+     * @param picture
+     * @param request
+     * @return
+     */
+    PictureVO getPictureVO(Picture picture, HttpServletRequest request);
+
+
+    /**
+     * 分页获取图片封装列表
+     *
+     * @param picturePage 分页
+     * @param request     登录用户
+     * @return
+     */
+    Page<PictureVO> getPictureVOPage(Page<Picture> picturePage, HttpServletRequest request);
+}

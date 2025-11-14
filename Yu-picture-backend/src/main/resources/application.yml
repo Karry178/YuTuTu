@@ -12,6 +12,10 @@ spring:
     url: jdbc:mysql://192.168.0.103:3306/yu_picture?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=GMT%2B8
     username: root
     password: 123456
+    # servlet配置 - 开放更大的文件上传体积
+  servlet:
+    multipart:
+      max-file-size: 10MB
 
 # MyBatis-Plus 配置
 mybatis-plus:

@@ -1,3 +1,7 @@
+### 自定义:不可上传到Github上的内容 ###
+application-local.yml
+
+
 HELP.md
 target/
 !.mvn/wrapper/maven-wrapper.jar
