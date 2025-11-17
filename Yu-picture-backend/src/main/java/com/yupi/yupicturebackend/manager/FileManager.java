@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -58,14 +59,15 @@ public class FileManager {
         // 获取原始文件名
         String originalFilename = multipartFile.getOriginalFilename();
         // 给文件名最后加一个时间前缀,文件名 = 时间前缀 + UUID + 原始文件名， 增加安全性
-        String uploadFilename = String.format("%s_%s.%s", DateUtils.formatDate(new Date()), uuid,
-                FileUtil.getSuffix(originalFilename));
+        String dateStr = DateUtils.formatDate(new Date()).replace(":","-").replace(" ", "_");
+        String uploadFilename = String.format("%s_%s.%s", dateStr, uuid, FileUtil.getSuffix(originalFilename));
+
 
         // ** 如果多个项目使用共同的存储桶，需要加单独的一步：给每个项目加单独的前缀，方便区分
         // String projectName = "yu-picture"; // 加在"/%s/%s"前面
 
         // 最终的文件路径
-        String uploadPath = String.format("/%s/%s", uploadPathPrefix);
+        String uploadPath = String.format("%s/%s", uploadPathPrefix, uploadFilename);
         // 3.解析结果并返回
         // 把 filepath和后缀 转为 multipartFile 格式
         File file = null;
@@ -97,7 +99,7 @@ public class FileManager {
             // 最后，返回可访问的地址
             return uploadPictureResult;
         } catch (Exception e) {
-            log.error("图片上传到对象存储失败", e);
+            log.error("图片上传到对象存储失败，错误信息：{}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "上传失败");
         } finally {
             // 4.临时文件清理

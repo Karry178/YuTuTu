@@ -214,7 +214,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             UserVO userVO = userService.getUserVO(user); // 对查出的用户再设置一次脱敏
             pictureVO.setUser(userVO);
         }
-        return null;
+        return pictureVO;
     }
 
 
