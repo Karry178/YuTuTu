@@ -15,12 +15,10 @@ import com.yupi.yupicturebackend.exception.ErrorCode;
 import com.yupi.yupicturebackend.exception.ThrowUtils;
 import com.yupi.yupicturebackend.manager.CosManager;
 import com.yupi.yupicturebackend.model.constant.UserConstant;
-import com.yupi.yupicturebackend.model.dto.picture.PictureEditRequest;
-import com.yupi.yupicturebackend.model.dto.picture.PictureQueryRequest;
-import com.yupi.yupicturebackend.model.dto.picture.PictureUpdateRequest;
-import com.yupi.yupicturebackend.model.dto.picture.PictureUploadRequest;
+import com.yupi.yupicturebackend.model.dto.picture.*;
 import com.yupi.yupicturebackend.model.entity.Picture;
 import com.yupi.yupicturebackend.model.entity.User;
+import com.yupi.yupicturebackend.model.enums.PictureReviewStatusEnum;
 import com.yupi.yupicturebackend.model.vo.PictureTagCategory;
 import com.yupi.yupicturebackend.model.vo.PictureVO;
 import com.yupi.yupicturebackend.service.PictureService;
@@ -54,7 +52,7 @@ public class PictureController {
 
 
     /**
-     * 【增】上传图片(可重新上传，因为业务层中定义文件名加了前缀，前缀一定不同)
+     * 【增】通过文件上传图片(可重新上传，因为业务层中定义文件名加了前缀，前缀一定不同)
      *
      * @param multipartFile        前端传来的文件
      * @param pictureUploadRequest 用户上传图片请求
@@ -73,6 +71,30 @@ public class PictureController {
         PictureVO pictureVO = pictureService.uploadPicture(multipartFile, pictureUploadRequest, loginUser);
 
         // 3.返回给前端的图片信息
+        return ResultUtils.success(pictureVO);
+    }
+
+
+    /**
+     * 【增】通过URL上传图片(可重新上传，因为业务层中定义文件名加了前缀，前缀一定不同)
+     *
+     * @param pictureUploadRequest 用户上传图片请求
+     * @param request              登录请求
+     * @return
+     */
+    @PostMapping("/upload/url")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<PictureVO> uploadPictureByUrl(@RequestBody PictureUploadRequest pictureUploadRequest, HttpServletRequest request) {
+        // 1.获取登录用户
+        User loginUser = userService.getLoginUser(request);
+
+        // 2.获取文件的url
+        String fileUrl = pictureUploadRequest.getFileUrl();
+
+        // 3.调用pictureService的上传图片方法
+        PictureVO pictureVO = pictureService.uploadPicture(fileUrl, pictureUploadRequest, loginUser);
+
+        // 4.返回给前端的图片信息
         return ResultUtils.success(pictureVO);
     }
 
@@ -139,6 +161,9 @@ public class PictureController {
         Long id = pictureUpdateRequest.getId();
         Picture oldPicture = pictureService.getById(id);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        // 补充审核参数 - 调用fillReviewParams方法
+        pictureService.fillReviewParams(picture, loginUser);
 
         // 6.最后操作数据库，更新数据
         boolean result = pictureService.updateById(picture);
@@ -173,6 +198,9 @@ public class PictureController {
         pictureService.validPicture(picture);
           // 获取登录用户，并确保要编辑的图片真的存在(用id在修改图片请求中获取)
         User loginUser = userService.getLoginUser(request);
+        // 补充审核参数 - 调用fillReviewParams方法
+        pictureService.fillReviewParams(picture, loginUser);
+
         Long id = pictureEditRequest.getId();
           // 从pictureService中通过id查到图片的话，就叫oldPicture
         Picture oldPicture = pictureService.getById(id);
@@ -261,10 +289,13 @@ public class PictureController {
         // 2.限制爬虫
         ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
 
-        // 3.查询数据库
+        // 3.普通用户默认只能看到审核通过的数据
+        pictureQueryRequest.setReviewStatus(PictureReviewStatusEnum.PASS.getValue());
+
+        // 4.查询数据库
         Page<Picture> picturePage = pictureService.page(new Page<>(current, size), pictureService.getQueryWrapper(pictureQueryRequest));
 
-        // 4.获取VO封装类
+        // 5.获取VO封装类
         return ResultUtils.success(pictureService.getPictureVOPage(picturePage, request));
     }
 
@@ -281,5 +312,44 @@ public class PictureController {
         pictureTagCategory.setTagList(tagList);
         pictureTagCategory.setCategoryList(categoryList);
         return ResultUtils.success(pictureTagCategory);
+    }
+
+
+    /**
+     * 审核图片(仅管理员可用)
+     *
+     * @param pictureReviewRequest 图片审核请求
+     * @param request              登录请求
+     * @return
+     */
+    @PostMapping("/review")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> doPictureReview(@RequestBody PictureReviewRequest pictureReviewRequest, HttpServletRequest request) {
+        // 1.校验参数
+        ThrowUtils.throwIf(pictureReviewRequest == null, ErrorCode.PARAMS_ERROR);
+        // 2.获取登录用户 - 调用UserService
+        User loginUser = userService.getLoginUser(request);
+        // 3.调用pictureService的doPictureReview方法
+        pictureService.doPictureReview(pictureReviewRequest, loginUser);
+        return ResultUtils.success(true);
+    }
+
+
+    /**
+     * 批量抓取并创建图片(仅管理员)
+     * @param pictureUploadByBatchRequest 图片批量抓取请求
+     * @param request 登录用户
+     * @return
+     */
+    @PostMapping("/upload/batch")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Integer> uploadPictureByBatch(@RequestBody PictureUploadByBatchRequest pictureUploadByBatchRequest, HttpServletRequest request) {
+        // 1.校验参数
+        ThrowUtils.throwIf(pictureUploadByBatchRequest == null, ErrorCode.PARAMS_ERROR);
+        // 2.获取登录用户
+        User loginUser = userService.getLoginUser(request);
+        // 3.调用pictureService的uploadPictureByBatch方法
+        Integer uploadCount = pictureService.uploadPictureByBatch(pictureUploadByBatchRequest, loginUser);
+        return ResultUtils.success(uploadCount);
     }
 }

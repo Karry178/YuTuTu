@@ -1,27 +1,22 @@
-package com.yupi.yupicturebackend.manager;
+package com.yupi.yupicturebackend.manager.upload;
 
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.RandomUtil;
 import com.qcloud.cos.model.PutObjectResult;
 import com.qcloud.cos.model.ciModel.persistence.ImageInfo;
-import com.yupi.yupicturebackend.common.ResultUtils;
 import com.yupi.yupicturebackend.config.CosClientConfig;
 import com.yupi.yupicturebackend.exception.BusinessException;
 import com.yupi.yupicturebackend.exception.ErrorCode;
-import com.yupi.yupicturebackend.exception.ThrowUtils;
+import com.yupi.yupicturebackend.manager.CosManager;
 import com.yupi.yupicturebackend.model.dto.file.UploadPictureResult;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.client.utils.DateUtils;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import java.io.File;
-import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
-import java.util.List;
 
 /**
  * manager包：主要存放可以服用的代码，不止是与这个项目绑定，而是可以直接复用到其余项目中
@@ -32,9 +27,7 @@ import java.util.List;
  */
 @Slf4j
 @Service
-// 该服务已废弃，已经抽离成upload中的模板方法，可以使用@Deprecated表示已废弃
-@Deprecated
-public class FileManager {
+public abstract class PictureUploadTemplate {
 
     // 引入CosClient的配置类
     @Resource
@@ -46,22 +39,22 @@ public class FileManager {
 
 
     /**
-     * 上传图片服务
+     * 图片上传模板
      *
-     * @param multipartFile    上传的文件
+     * @param inputSource      上传的文件
      * @param uploadPathPrefix 上传的路径前缀
      * @return
      */
-    public UploadPictureResult uploadPicture(MultipartFile multipartFile, String uploadPathPrefix) {
+    public UploadPictureResult uploadPicture(Object inputSource, String uploadPathPrefix) {
         // 1.校验图片，调用校验方法
-        validPicture(multipartFile);
+        validPicture(inputSource);
         // 2.图片上传地址
         // 每一个文件前面要加一个UUID前缀，防止修改图片名字重复，UUID全随机
         String uuid = RandomUtil.randomString(16);
         // 获取原始文件名
-        String originalFilename = multipartFile.getOriginalFilename();
+        String originalFilename = getOriginalFilename(inputSource);
         // 给文件名最后加一个时间前缀,文件名 = 时间前缀 + UUID + 原始文件名， 增加安全性
-        String dateStr = DateUtils.formatDate(new Date()).replace(":","-").replace(" ", "_");
+        String dateStr = DateUtils.formatDate(new Date()).replace(":", "-").replace(" ", "_");
         String uploadFilename = String.format("%s_%s.%s", dateStr, uuid, FileUtil.getSuffix(originalFilename));
 
 
@@ -70,36 +63,24 @@ public class FileManager {
 
         // 最终的文件路径
         String uploadPath = String.format("%s/%s", uploadPathPrefix, uploadFilename);
-        // 3.解析结果并返回
-        // 把 filepath和后缀 转为 multipartFile 格式
+
+        // 解析结果并返回
+        // 把 filepath和后缀 转为 inputSource 格式
         File file = null;
         try {
-            // 上传文件
+            // 3.创建临时文件，获取文件到服务器
             file = File.createTempFile(uploadPath, null);
-            // 把上传的file文件转为multipartFile格式 + filepath 传给cosManager
-            // 但是上面把值传给file只是在本地创建了一个临时文件，前端上传的文件并未转到本地，需要调用multipartFile的transferTo方法把multipartFile文件传输到本地存储文件中
-            multipartFile.transferTo(file);
+            // 处理文件来源
+            processFile(inputSource, file);
+
+            // 4.上传图片到对象存储(腾讯云)
             PutObjectResult putObjectResult = cosManager.putPictureObject(uploadPath, file);
-            // 获取图片信息返回对象
+            // 5.获取图片信息封装返回结果
             ImageInfo imageInfo = putObjectResult.getCiUploadResult().getOriginalInfo().getImageInfo();
 
-            int picWidth = imageInfo.getWidth();
-            int picHeight = imageInfo.getHeight();
-            // 计算宽高比：先用NumberUtil的round方法四舍五入计算的值，并保留2位小数，最后通过doubleValue方法取出值
-            double picScale = NumberUtil.round(picWidth * 1.0 / picHeight, 2).doubleValue();
+            // 调用 封装返回结果的方法，返回可以访问的地址
+            return buildResult(imageInfo, uploadPath, originalFilename, file);
 
-            // 封装返回结果,新建一个UploadPictureResult对象，获取全部值
-            UploadPictureResult uploadPictureResult = new UploadPictureResult();
-            uploadPictureResult.setUrl(cosClientConfig.getHost() + "/" + uploadPath);
-            uploadPictureResult.setName(FileUtil.mainName(originalFilename));
-            uploadPictureResult.setPicSize(FileUtil.size(file));
-            uploadPictureResult.setPicWidth(imageInfo.getWidth());
-            uploadPictureResult.setPicHeight(imageInfo.getHeight());
-            uploadPictureResult.setPicScale(picScale);
-            uploadPictureResult.setPicFormat(imageInfo.getFormat());
-
-            // 最后，返回可访问的地址
-            return uploadPictureResult;
         } catch (Exception e) {
             log.error("图片上传到对象存储失败，错误信息：{}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "上传失败");
@@ -114,19 +95,56 @@ public class FileManager {
     /**
      * 校验文件
      *
-     * @param multipartFile 上传的文件
+     * @param inputSource 上传的文件
      */
-    private void validPicture(MultipartFile multipartFile) {
-        ThrowUtils.throwIf(multipartFile == null, ErrorCode.PARAMS_ERROR, "文件不能为空");
-        // 1.校验文件大小
-        long fileSize = multipartFile.getSize();
-        final long ONE_M = 1024 * 1024; // 定义1M大小
-        ThrowUtils.throwIf(fileSize > 2 * ONE_M, ErrorCode.PARAMS_ERROR, "文件大小不能超过2M");
-        // 2.校验文件格式/后缀
-        String fileSuffix = FileUtil.getSuffix(multipartFile.getOriginalFilename());
-        // 定义允许上传的文件后缀列表/集合
-        final List<String> ALLOW_FORMAT_LIST = Arrays.asList("jpeg", "png", "jpg", "webp");
-        ThrowUtils.throwIf(!ALLOW_FORMAT_LIST.contains(fileSuffix), ErrorCode.PARAMS_ERROR, "文件格式错误");
+    protected abstract void validPicture(Object inputSource);
+
+
+    /**
+     * 获取输入源的原始文件名
+     *
+     * @param inputSource
+     * @return
+     */
+    protected abstract String getOriginalFilename(Object inputSource);
+
+
+    /**
+     * 处理输入源并生成本地临时文件
+     *
+     * @param inputSource
+     * @param file
+     */
+    protected abstract void processFile(Object inputSource, File file);
+
+
+    /**
+     * 封装返回结果
+     *
+     * @param imageInfo        对象存储返回的图片信息
+     * @param uploadPath       上传路径
+     * @param originalFilename 原始文件名
+     * @param file             文件
+     * @return 返回可以访问的地址
+     */
+    private UploadPictureResult buildResult(ImageInfo imageInfo, String uploadPath, String originalFilename, File file) {
+        int picWidth = imageInfo.getWidth();
+        int picHeight = imageInfo.getHeight();
+        // 计算宽高比：先用NumberUtil的round方法四舍五入计算的值，并保留2位小数，最后通过doubleValue方法取出值
+        double picScale = NumberUtil.round(picWidth * 1.0 / picHeight, 2).doubleValue();
+
+        // 封装返回结果,新建一个UploadPictureResult对象，获取全部值
+        UploadPictureResult uploadPictureResult = new UploadPictureResult();
+        uploadPictureResult.setUrl(cosClientConfig.getHost() + "/" + uploadPath);
+        uploadPictureResult.setName(FileUtil.mainName(originalFilename));
+        uploadPictureResult.setPicSize(FileUtil.size(file));
+        uploadPictureResult.setPicWidth(imageInfo.getWidth());
+        uploadPictureResult.setPicHeight(imageInfo.getHeight());
+        uploadPictureResult.setPicScale(picScale);
+        uploadPictureResult.setPicFormat(imageInfo.getFormat());
+
+        // 最后，返回可访问的地址
+        return uploadPictureResult;
     }
 
 
@@ -146,3 +164,7 @@ public class FileManager {
         }
     }
 }
+    
+    
+
+
