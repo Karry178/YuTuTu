@@ -1,11 +1,10 @@
 package com.yupi.yupicturebackend.controller;
 
-import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.qcloud.cos.model.COSObject;
-import com.qcloud.cos.model.COSObjectInputStream;
-import com.qcloud.cos.utils.IOUtils;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.yupi.yupicturebackend.annotation.AuthCheck;
 import com.yupi.yupicturebackend.common.BaseResponse;
 import com.yupi.yupicturebackend.common.DeleteRequest;
@@ -13,7 +12,6 @@ import com.yupi.yupicturebackend.common.ResultUtils;
 import com.yupi.yupicturebackend.exception.BusinessException;
 import com.yupi.yupicturebackend.exception.ErrorCode;
 import com.yupi.yupicturebackend.exception.ThrowUtils;
-import com.yupi.yupicturebackend.manager.CosManager;
 import com.yupi.yupicturebackend.model.constant.UserConstant;
 import com.yupi.yupicturebackend.model.dto.picture.*;
 import com.yupi.yupicturebackend.model.entity.Picture;
@@ -25,17 +23,19 @@ import com.yupi.yupicturebackend.service.PictureService;
 import com.yupi.yupicturebackend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.util.DigestUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.File;
-import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/picture")
@@ -49,6 +49,17 @@ public class PictureController {
     // 引入PictureService
     @Resource
     private PictureService pictureService;
+
+    // 引入Redis
+    @Resource
+    private StringRedisTemplate  stringRedisTemplate;
+
+    // 使用本地缓存Caffeine
+    private final Cache<String, String> LOCAL_CACHE = Caffeine.newBuilder()
+            .initialCapacity(1024) // 分配一个初始容量
+            .maximumSize(10_000L) // 最大10000条
+            .expireAfterWrite(Duration.ofMinutes(5)) // 写缓存之后的过期时间（5分钟）
+            .build();
 
 
     /**
@@ -265,12 +276,13 @@ public class PictureController {
         ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
 
         // 3.查询数据库
-          // todo Page方法是什么？我没写在pictureServiceImpl中啊。
           // 是否为系统自带的page方法，前面是page，后面是存放到page的数据？
         Page<Picture> picturePage = pictureService.page(new Page<>(current, size), pictureService.getQueryWrapper(pictureQueryRequest));
-
+          // 将分页功能的当前页数、每页显示数量
+        Page<Picture> resultPage = new Page<>(current, size, picturePage.getTotal());
+        resultPage.setRecords(picturePage.getRecords());
         // 4.返回分页后的page
-        return ResultUtils.success(picturePage);
+        return ResultUtils.success(resultPage);
     }
 
 
@@ -297,6 +309,176 @@ public class PictureController {
 
         // 5.获取VO封装类
         return ResultUtils.success(pictureService.getPictureVOPage(picturePage, request));
+    }
+
+    /**
+     * 【分页查询】分页获取图片的列表(封装VO类，只给普通用户看到) -> 分级缓存(本地缓存 + Redis分布式缓存)
+     * @param pictureQueryRequest 图片分页请求
+     * @param request 登录用户
+     * @return 封装VO的分页数据
+     */
+    @PostMapping("/list/page/vo/cache")
+    public BaseResponse<Page<PictureVO>> listPictureVOByPageWithCache(@RequestBody PictureQueryRequest pictureQueryRequest, HttpServletRequest request) {
+        // 1.先获取当前页和每页最大列数 -> 从PageRequest中获取的
+        long current = pictureQueryRequest.getCurrent();
+        long size = pictureQueryRequest.getPageSize();
+
+        // 2.限制爬虫
+        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+
+        // 3.普通用户默认只能看到审核通过的数据
+        pictureQueryRequest.setReviewStatus(PictureReviewStatusEnum.PASS.getValue());
+
+        // 【重要】4.先查缓存，再查询数据库！
+        // 4.1 构建缓存的key -> 把查询请求通过JSONUtil转为JSON格式
+        String queryCondition = JSONUtil.toJsonStr(pictureQueryRequest);
+        // 使用DigestUtils把转为的JSON字符串使用MD5加密 -> 获取hashKey
+        String hashKey = DigestUtils.md5DigestAsHex(queryCondition.getBytes());
+        // 最后，构建Redis的key -> 项目名 + 方法名 + hashKey
+        String cacheKey = String.format("yupicture:listPictureVOByPage:%s", hashKey);
+
+        // 4.2 先从本地缓存中查询
+        String cachedValue = LOCAL_CACHE.getIfPresent(cacheKey);
+        if (cachedValue != null) {
+            // 如果缓存命中，缓存结果
+            Page<PictureVO> cachePage = JSONUtil.toBean(cachedValue, Page.class);
+            return ResultUtils.success(cachePage);
+        }
+
+        // 4.3 本地缓存未命中！查询Redis分布式缓存
+        // 先拿到Redis的值，从获取的值中拿到需要的redisKey
+        ValueOperations<String, String> opsForValue = stringRedisTemplate.opsForValue();
+        cachedValue = opsForValue.get(cacheKey);
+        if (cachedValue != null) {
+            // 缓存命中了！需要更新本地缓存，返回结果
+            // 从缓存中取出结果，需要先反序列化，把cachedValue转为Page对象
+            LOCAL_CACHE.put(cacheKey, cachedValue);
+            Page<PictureVO> cachedPage = JSONUtil.toBean(cachedValue, Page.class);
+            return ResultUtils.success(cachedPage);
+        }
+
+        // 5.如果Redis未命中结果，就查询数据库
+        Page<Picture> picturePage = pictureService.page(new Page<>(current, size), pictureService.getQueryWrapper(pictureQueryRequest));
+        // 把查到的图片分页结果经过VO封装
+        Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
+        // 把在数据库中查到的结果写入Redis缓存，方便下次查询
+        // 5.1 更新Redis缓存，把VO封装结果通过JSON工具类序列化，存入cacheValue
+        String cacheValue = JSONUtil.toJsonStr(pictureVOPage);
+        // 【※】设置缓存的过期时间:5 - 10分钟（目的是避免 缓存雪崩:多个缓存同一时间集体失效，加剧数据库压力。解决方法：过期时间避免同一时间）
+        int cacheExpireTime = 300 + RandomUtil.randomInt(0, 300); // 300s + (0,300)s 的过期时间
+        // 最后，设置缓存的key、Value和过期时间
+        opsForValue.set(cacheKey, cacheValue, cacheExpireTime, TimeUnit.SECONDS);
+        // 5.2 更新本地缓存
+        LOCAL_CACHE.put(cacheKey, cacheValue);
+
+        // 6.获取VO封装类
+        return ResultUtils.success(pictureVOPage);
+    }
+
+
+    /**
+     * 【分页查询】分页获取图片的列表(封装VO类，只给普通用户看到) -> 有Redis缓存
+     * @param pictureQueryRequest 图片分页请求
+     * @param request 登录用户
+     * @return 封装VO的分页数据
+     */
+    @PostMapping("/list/page/vo/cache/redis")
+    public BaseResponse<Page<PictureVO>> listPictureVOByPageWithRedisCache(@RequestBody PictureQueryRequest pictureQueryRequest, HttpServletRequest request) {
+        // 1.先获取当前页和每页最大列数 -> 从PageRequest中获取的
+        long current = pictureQueryRequest.getCurrent();
+        long size = pictureQueryRequest.getPageSize();
+
+        // 2.限制爬虫
+        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+
+        // 3.普通用户默认只能看到审核通过的数据
+        pictureQueryRequest.setReviewStatus(PictureReviewStatusEnum.PASS.getValue());
+
+        // 【重要】4.先查缓存，再查询数据库！
+          // 4.1 构建缓存的key -> 把查询请求通过JSONUtil转为JSON格式
+        String queryCondition = JSONUtil.toJsonStr(pictureQueryRequest);
+          // 使用DigestUtils把转为的JSON字符串使用MD5加密 -> 获取hashKey
+        String hashKey = DigestUtils.md5DigestAsHex(queryCondition.getBytes());
+          // 最后，构建Redis的key -> 项目名 + 方法名 + hashKey
+        String redisKey = String.format("yupicture:listPictureVOByPage:%s", hashKey);
+
+        // 4.2 操作Redis，从缓存中查询
+          // 先拿到Redis的值，从获取的值中拿到需要的redisKey
+        ValueOperations<String, String> opsForValue = stringRedisTemplate.opsForValue();
+        String cachedValue = opsForValue.get(redisKey);
+        if (cachedValue != null) {
+            // 如果不为空，说明之前存入了缓存，所以现在缓存命中了，现在需要缓存结果
+            // 从缓存中取出结果，需要先反序列化，把cachedValue转为Page对象
+            Page<PictureVO> cachedPage = JSONUtil.toBean(cachedValue, Page.class);
+            return ResultUtils.success(cachedPage);
+        }
+
+        // 5.如果Redis未命中结果，就查询数据库
+        Page<Picture> picturePage = pictureService.page(new Page<>(current, size), pictureService.getQueryWrapper(pictureQueryRequest));
+          // 把查到的图片分页结果经过VO封装
+        Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
+        // 把在数据库中查到的结果写入Redis缓存，方便下次查询
+          // 把VO封装结果通过JSON工具类序列化，存入cacheValue
+        String cacheValue = JSONUtil.toJsonStr(pictureVOPage);
+        // 【※】设置缓存的过期时间:5 - 10分钟（目的是避免 缓存雪崩:多个缓存同一时间集体失效，加剧数据库压力。解决方法：过期时间避免同一时间）
+        int cacheExpireTime = 300 + RandomUtil.randomInt(0, 300); // 300s + (0,300)s 的过期时间
+          // 最后，设置缓存的key、Value和过期时间
+        opsForValue.set(redisKey, cacheValue, cacheExpireTime, TimeUnit.SECONDS);
+
+        // 6.获取VO封装类
+        return ResultUtils.success(pictureVOPage);
+    }
+
+
+    /**
+     * 【分页查询】分页获取图片的列表(封装VO类，只给普通用户看到) -> 有Caffeine本地缓存
+     * @param pictureQueryRequest 图片分页请求
+     * @param request 登录用户
+     * @return 封装VO的分页数据
+     */
+    @PostMapping("/list/page/vo/cache/caffeine")
+    public BaseResponse<Page<PictureVO>> listPictureVOByPageWithCaffeineCache(@RequestBody PictureQueryRequest pictureQueryRequest, HttpServletRequest request) {
+        // 1.先获取当前页和每页最大列数 -> 从PageRequest中获取的
+        long current = pictureQueryRequest.getCurrent();
+        long size = pictureQueryRequest.getPageSize();
+
+        // 2.限制爬虫
+        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+
+        // 3.普通用户默认只能看到审核通过的数据
+        pictureQueryRequest.setReviewStatus(PictureReviewStatusEnum.PASS.getValue());
+
+        // 【重要】4.先查缓存，再查询数据库！
+        // 4.1 构建缓存的key -> 把查询请求通过JSONUtil转为JSON格式
+        String queryCondition = JSONUtil.toJsonStr(pictureQueryRequest);
+        // 使用DigestUtils把转为的JSON字符串使用MD5加密 -> 获取hashKey
+        String hashKey = DigestUtils.md5DigestAsHex(queryCondition.getBytes());
+        // 最后，构建Redis的key -> 项目名 + 方法名 + hashKey
+        String cacheKey = String.format("listPictureVOByPage:%s", hashKey);
+
+        // 4.2 操作本地缓存Caffeine，从缓存中查询
+        String cachedValue = LOCAL_CACHE.getIfPresent(cacheKey);
+        if (cachedValue != null) {
+            // 如果不为空，说明之前存入了缓存，所以现在缓存命中了，现在需要缓存结果
+            // 从缓存中取出结果，需要先反序列化，把cachedValue转为Page对象
+            Page<PictureVO> cachedPage = JSONUtil.toBean(cachedValue, Page.class);
+            return ResultUtils.success(cachedPage);
+        }
+
+        // 5.如果Redis未命中结果，就查询数据库
+        Page<Picture> picturePage = pictureService.page(new Page<>(current, size), pictureService.getQueryWrapper(pictureQueryRequest));
+        // 把查到的图片分页结果经过VO封装
+        Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
+        // 把在数据库中查到的结果写入Redis缓存，方便下次查询
+        // 把VO封装结果通过JSON工具类序列化，存入cacheValue
+        String cacheValue = JSONUtil.toJsonStr(pictureVOPage);
+        // 【※】设置缓存的过期时间:5 - 10分钟（目的是避免 缓存雪崩:多个缓存同一时间集体失效，加剧数据库压力。解决方法：过期时间避免同一时间）
+        int cacheExpireTime = 300 + RandomUtil.randomInt(0, 300); // 300s + (0,300)s 的过期时间
+        // 写入本地缓存Caffeine
+        LOCAL_CACHE.put(cacheKey, cacheValue);
+
+        // 6.获取VO封装类
+        return ResultUtils.success(pictureVOPage);
     }
 
 

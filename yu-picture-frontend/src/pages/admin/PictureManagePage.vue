@@ -51,7 +51,6 @@
       :data-source="dataList"
       :pagination="pagination"
       @change="doTableChange"
-      :scroll="{ x: 'max-content' }"
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.dataIndex === 'url'">
@@ -221,7 +220,7 @@ const pagination = computed(() => {
     pageSize: searchParams.pageSize,
     total: total.value,
     showSizeChanger: true,
-    showTotal: (total) => '共${total}条',
+    showTotal: (total) => '共${total}条'
   }
 })
 

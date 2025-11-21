@@ -155,6 +155,7 @@ declare namespace API {
     reviewStatus?: number
     reviewTime?: string
     tags?: string
+    thumbnailUrl?: string
     updateTime?: string
     url?: string
     userId?: number

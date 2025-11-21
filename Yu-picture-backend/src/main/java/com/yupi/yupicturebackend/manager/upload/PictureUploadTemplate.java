@@ -1,10 +1,13 @@
 package com.yupi.yupicturebackend.manager.upload;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.RandomUtil;
 import com.qcloud.cos.model.PutObjectResult;
+import com.qcloud.cos.model.ciModel.persistence.CIObject;
 import com.qcloud.cos.model.ciModel.persistence.ImageInfo;
+import com.qcloud.cos.model.ciModel.persistence.ProcessResults;
 import com.yupi.yupicturebackend.config.CosClientConfig;
 import com.yupi.yupicturebackend.exception.BusinessException;
 import com.yupi.yupicturebackend.exception.ErrorCode;
@@ -17,6 +20,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import java.io.File;
 import java.util.Date;
+import java.util.List;
 
 /**
  * manager包：主要存放可以服用的代码，不止是与这个项目绑定，而是可以直接复用到其余项目中
@@ -78,6 +82,22 @@ public abstract class PictureUploadTemplate {
             // 5.获取图片信息封装返回结果
             ImageInfo imageInfo = putObjectResult.getCiUploadResult().getOriginalInfo().getImageInfo();
 
+            // 6.获取到图片处理结果
+            ProcessResults processResults = putObjectResult.getCiUploadResult().getProcessResults();
+              // 再从得到的processResults中获取 处理转化后的所有图片列表 -> 两个处理方式：压缩图与缩略图
+            List<CIObject> objectList = processResults.getObjectList();
+            if (CollUtil.isNotEmpty(objectList)) {
+                // 如果值非空，取出第一条压缩后的文件信息
+                CIObject compressedCiObject = objectList.get(0);
+                // 再取出第二条结果：缩略图处理后的(只有存在时，才取出, 先给缩略图默认值为:压缩后的图片)
+                CIObject thumbnailCiObject = compressedCiObject;
+                if (objectList.size() > 1) {
+                    thumbnailCiObject = objectList.get(1);
+                }
+                // 封装压缩图的返回结果
+                return buildResult(originalFilename, compressedCiObject, thumbnailCiObject);
+            }
+
             // 调用 封装返回结果的方法，返回可以访问的地址
             return buildResult(imageInfo, uploadPath, originalFilename, file);
 
@@ -116,6 +136,39 @@ public abstract class PictureUploadTemplate {
      * @param file
      */
     protected abstract void processFile(Object inputSource, File file);
+
+
+    /**
+     * 压缩后的封装返回结果
+     * @param originalFilename 初始文件名
+     * @param compressedCiObject 压缩后的对象
+     * @param thumbnailCiObject 图片的缩略图
+     * @return
+     */
+    private UploadPictureResult buildResult(String originalFilename, CIObject compressedCiObject, CIObject thumbnailCiObject) {
+        int picWidth = compressedCiObject.getWidth();
+        int picHeight = compressedCiObject.getHeight();
+        // 计算宽高比：先用NumberUtil的round方法四舍五入计算的值，并保留2位小数，最后通过doubleValue方法取出值
+        double picScale = NumberUtil.round(picWidth * 1.0 / picHeight, 2).doubleValue();
+
+        // 封装返回结果,新建一个UploadPictureResult对象，获取全部值
+        UploadPictureResult uploadPictureResult = new UploadPictureResult();
+
+        // 1.设置压缩后的原图地址
+        uploadPictureResult.setUrl(cosClientConfig.getHost() + "/" + compressedCiObject.getKey()); // 上传路径：从当前压缩上传成功的对象中取出Key
+        uploadPictureResult.setName(FileUtil.mainName(originalFilename));
+        uploadPictureResult.setPicSize(compressedCiObject.getSize().longValue());
+        uploadPictureResult.setPicWidth(picWidth);
+        uploadPictureResult.setPicHeight(picHeight);
+        uploadPictureResult.setPicScale(picScale);
+        uploadPictureResult.setPicFormat(compressedCiObject.getFormat());
+
+        // 设置缩略图地址
+        uploadPictureResult.setThumbnailUrl(cosClientConfig.getHost() + "/" + thumbnailCiObject.getKey());
+
+        // 最后，返回可访问的地址
+        return uploadPictureResult;
+    }
 
 
     /**

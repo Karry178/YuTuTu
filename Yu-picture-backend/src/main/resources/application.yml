@@ -2,17 +2,36 @@ server:
   port: 8123
   servlet:
     context-path: /api
+    # cookie 也是30天过期
+    session:
+      cookie:
+        max-age: 2592000
 
 spring:
   application:
     name: yu-picture-backend
-    # 数据库配置
+    # 数据库 配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://192.168.0.103:3306/yu_picture?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=GMT%2B8
     username: root
     password: 123456
-    # servlet配置 - 开放更大的文件上传体积
+
+  # Redis 配置
+  redis:
+    database: 0
+    host: 192.168.0.103
+    port: 6379
+    timeout: 5000
+    password: 123456
+
+  # Session 配置
+  session:
+    store-type: redis
+    # session 30天后过期
+    timeout: 2592000
+
+  # servlet配置 - 开放更大的文件上传体积
   servlet:
     multipart:
       max-file-size: 10MB
