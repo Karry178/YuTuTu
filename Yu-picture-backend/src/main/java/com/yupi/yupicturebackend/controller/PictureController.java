@@ -15,11 +15,13 @@ import com.yupi.yupicturebackend.exception.ThrowUtils;
 import com.yupi.yupicturebackend.model.constant.UserConstant;
 import com.yupi.yupicturebackend.model.dto.picture.*;
 import com.yupi.yupicturebackend.model.entity.Picture;
+import com.yupi.yupicturebackend.model.entity.Space;
 import com.yupi.yupicturebackend.model.entity.User;
 import com.yupi.yupicturebackend.model.enums.PictureReviewStatusEnum;
 import com.yupi.yupicturebackend.model.vo.PictureTagCategory;
 import com.yupi.yupicturebackend.model.vo.PictureVO;
 import com.yupi.yupicturebackend.service.PictureService;
+import com.yupi.yupicturebackend.service.SpaceService;
 import com.yupi.yupicturebackend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -60,6 +62,10 @@ public class PictureController {
             .maximumSize(10_000L) // 最大10000条
             .expireAfterWrite(Duration.ofMinutes(5)) // 写缓存之后的过期时间（5分钟）
             .build();
+
+    // 引入SpaceService
+    @Resource
+    private SpaceService spaceService;
 
 
     /**
@@ -122,23 +128,11 @@ public class PictureController {
         ThrowUtils.throwIf(deleteRequest == null || deleteRequest.getId() <= 0, ErrorCode.PARAMS_ERROR);
 
         // 2.判断用户是否可以删除图片
-        // 获取登录用户信息
+          // 获取登录用户信息
         User loginUser = userService.getLoginUser(request);
-        // 再判断图片是否存在，通过图片id获取图片
-        Long id = deleteRequest.getId();
+          // 调用deletePicture方法
+        pictureService.deletePicture(deleteRequest.getId(), loginUser);
 
-        // 3.从数据库通过id获取图片 -> 如果图片存在，定义为老图片;不存在就报错
-        Picture oldPicture = pictureService.getById(id);
-        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
-
-        // 4.图片存在了 -> 只有本人和管理员可以删除本张图片
-        if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "你无权删除本图片");
-        }
-
-        // 5.最后一步：操作数据库，删除图片
-        boolean result = pictureService.removeById(id);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
 
@@ -195,36 +189,12 @@ public class PictureController {
         if (pictureEditRequest == null || pictureEditRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-
-        // 2.在此处进行实体类和DTO请求类的转换
-        Picture picture = new Picture();
-        BeanUtils.copyProperties(pictureEditRequest, picture);
-          // 注意将list转为String
-        picture.setTags(JSONUtil.toJsonStr(pictureEditRequest.getTags()));
-          // 设置编辑时间
-        picture.setEditTime(new Date());
-
-        // 3.数据校验
-          // 调用图片类通用的方法validPicture
-        pictureService.validPicture(picture);
           // 获取登录用户，并确保要编辑的图片真的存在(用id在修改图片请求中获取)
         User loginUser = userService.getLoginUser(request);
-        // 补充审核参数 - 调用fillReviewParams方法
-        pictureService.fillReviewParams(picture, loginUser);
 
-        Long id = pictureEditRequest.getId();
-          // 从pictureService中通过id查到图片的话，就叫oldPicture
-        Picture oldPicture = pictureService.getById(id);
-        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
+        // 2.调用pictureService的editPicture方法
+        pictureService.editPicture(pictureEditRequest, loginUser);
 
-        // 4.只有本人和管理员可以编辑查到的图片信息
-        if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
-
-        // 5.操作数据库
-        boolean result = pictureService.updateById(picture);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
 
@@ -243,11 +213,25 @@ public class PictureController {
         // 2.查询数据库 -> 根据id获取图片
         Picture picture = pictureService.getById(id);
         ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR);
-        // 3.如果查找到了，获取封装类
+
+        // 3.空间权限校验
+        Long spaceId = picture.getSpaceId();
+        if (spaceId != null) {
+            User loginUser = userService.getLoginUser(request);
+            pictureService.checkPictureAuth(loginUser, picture);
+        }
+
+        // 4.如果查找到了，获取封装类
         return ResultUtils.success(picture);
     }
 
-    // 【查】根据id获取图片(封装VO类)
+
+    /**
+     * 【查】根据id获取图片(封装VO类)
+     * @param id
+     * @param request
+     * @return
+     */
     @GetMapping("/get/vo")
     public BaseResponse<PictureVO> getPictureVOById(long id, HttpServletRequest request) {
         // 1.校验参数
@@ -255,7 +239,17 @@ public class PictureController {
         // 2.查询数据库
         Picture picture = pictureService.getById(id);
         ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR);
-        // 3.如果查找到了，获取封装VO类
+
+        // 3.【新增】空间权限校验
+        Long spaceId = picture.getSpaceId();
+        if (spaceId != null) {
+            // 私有图库，判断是否是该图库管理员
+            User loginUser = userService.getLoginUser(request);
+            // 调用PictureService的checkPictureAuth方法
+            pictureService.checkPictureAuth(loginUser, picture);
+        }
+
+        // 4.如果查找到了，获取封装VO类
         return ResultUtils.success(pictureService.getPictureVO(picture, request));
     }
 
@@ -301,8 +295,21 @@ public class PictureController {
         // 2.限制爬虫
         ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
 
-        // 3.普通用户默认只能看到审核通过的数据
-        pictureQueryRequest.setReviewStatus(PictureReviewStatusEnum.PASS.getValue());
+        // 3.空间权限校验
+        Long spaceId = pictureQueryRequest.getSpaceId();
+        if (spaceId == null) {
+            // 公开图库：普通用户默认只能看到审核通过的数据
+            pictureQueryRequest.setReviewStatus(PictureReviewStatusEnum.PASS.getValue());
+            pictureQueryRequest.setNullSpaceId(true); // 不传spaceId,所以只能查到公开图库
+        } else {
+            // 私有空间
+            User loginUser = userService.getLoginUser(request);
+            Space space = spaceService.getById(spaceId);
+            ThrowUtils.throwIf(space == null,ErrorCode.NOT_FOUND_ERROR, "空间不存在");
+            if (!loginUser.equals(space.getUserId())) {
+                throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间权限");
+            }
+        }
 
         // 4.查询数据库
         Page<Picture> picturePage = pictureService.page(new Page<>(current, size), pictureService.getQueryWrapper(pictureQueryRequest));
@@ -311,12 +318,14 @@ public class PictureController {
         return ResultUtils.success(pictureService.getPictureVOPage(picturePage, request));
     }
 
+
     /**
      * 【分页查询】分页获取图片的列表(封装VO类，只给普通用户看到) -> 分级缓存(本地缓存 + Redis分布式缓存)
      * @param pictureQueryRequest 图片分页请求
      * @param request 登录用户
      * @return 封装VO的分页数据
      */
+    @Deprecated
     @PostMapping("/list/page/vo/cache")
     public BaseResponse<Page<PictureVO>> listPictureVOByPageWithCache(@RequestBody PictureQueryRequest pictureQueryRequest, HttpServletRequest request) {
         // 1.先获取当前页和每页最大列数 -> 从PageRequest中获取的

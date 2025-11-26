@@ -1,9 +1,6 @@
 package com.yupi.yupicturebackend.model.vo;
 
 import cn.hutool.json.JSONUtil;
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.yupi.yupicturebackend.model.entity.Picture;
 import lombok.Data;
 import org.springframework.beans.BeanUtils;
@@ -75,6 +72,11 @@ public class PictureVO implements Serializable {
      * 创建用户 id
      */
     private Long userId;
+
+    /**
+     * 【新增】空间id
+     */
+    private Long spaceId;
 
     /**
      * 创建时间
