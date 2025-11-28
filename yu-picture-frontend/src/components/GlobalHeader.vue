@@ -30,13 +30,21 @@
               <!-- 用户头像组件：dropdown组件,只能放插槽 -->
               <a-dropdown>
                 <!-- 把头像、用户名放入a-space组件，避免被dropdown组件吞掉 -->
-                <a-space>
+                <a-space class="user-info">
                   <a-avatar :src="loginUserStore.loginUser.userAvatar" />
-                  {{ loginUserStore.loginUser.userName ?? '无名' }}
+                  <span class="user-name">
+                    {{ loginUserStore.loginUser.userName ?? '无名之辈' }}
+                  </span>
                 </a-space>
                 <!-- 头像的下拉菜单 -->
                 <template #overlay>
                   <a-menu>
+                    <a-menu-item >
+                      <router-link to="/my_space">
+                        <UserOutlined />
+                        我的空间
+                      </router-link>
+                    </a-menu-item>
                     <a-menu-item @click="doLogout">
                       <LogoutOutlined />
                       退出登录
@@ -57,7 +65,7 @@
 
 <script lang="ts" setup>
 import { computed, h, ref } from 'vue'
-import { HomeOutlined, LogoutOutlined } from '@ant-design/icons-vue'
+import { HomeOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons-vue' // 引入各种图标
 import { MenuProps, message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import { useLoginUserStore } from '@/stores/useLoginUserStore.ts'
@@ -87,6 +95,11 @@ const originItems = [
     key: '/admin/pictureManage',
     label: '图片管理',
     title: '图片管理',
+  },
+  {
+    key: '/admin/spaceManage',
+    label: '空间管理',
+    title: '空间管理',
   },
   {
     key: 'others',
@@ -162,5 +175,18 @@ const doLogout = async () => {
 
 .logo {
   height: 48px;
+}
+
+.user-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px; /*头像和用户名之间的间隔*/
+}
+
+.user-name {
+  white-space: nowrap; /*不自动换行*/
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

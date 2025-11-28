@@ -20,11 +20,13 @@
 import { ref } from 'vue'
 import { PlusOutlined, LoadingOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
-import type { UploadChangeParam, UploadProps } from 'ant-design-vue'
+import type { UploadProps } from 'ant-design-vue'
 import { uploadPictureUsingPost } from '@/api/pictureController.ts'
 
+// 拿到数据
 interface Props {
   picture?: API.PictureVO
+  spaceId?: number
   onSuccess?: (newPicture: API.PictureVO) => void
 }
 
@@ -37,7 +39,8 @@ const handleUpload = async ({ file }: any) => {
   loading.value = true;
 
   try {
-    const params = props.picture ? {id : props.picture.id} : {};
+    const params: API.PictureUploadRequest = props.picture ? {id : props.picture.id} : {};
+    params.spaceId = props.spaceId;
     const res = await uploadPictureUsingPost(params, {}, file)
     if (res.data.code === 0 && res.data.data) {
       message.success('图片上传成功')

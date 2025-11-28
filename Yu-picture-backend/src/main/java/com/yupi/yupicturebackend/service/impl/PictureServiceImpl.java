@@ -41,10 +41,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -230,13 +227,16 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             // 插入数据
             boolean result = this.saveOrUpdate(picture);
             ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "图片上传失败，数据库操作失败");
-            // 插入数据成功后 => 更新空间的使用额度
-            boolean update = spaceService.lambdaUpdate()
-                    .eq(Space::getId, finalSpaceId)
-                    .setSql("totalSize = totalSize + " + picture.getPicSize())
-                    .setSql("totalCount = totalCount + 1")
-                    .update();
-            ThrowUtils.throwIf(!update, ErrorCode.OPERATION_ERROR, "额度更新失败");
+            // 只有spaceId不为空(即私有空间)才需要更新额度
+            if (finalSpaceId != null) {
+                // 插入数据成功后 => 更新空间的使用额度
+                boolean update = spaceService.lambdaUpdate()
+                        .eq(Space::getId, finalSpaceId)
+                        .setSql("totalSize = totalSize + " + picture.getPicSize())
+                        .setSql("totalCount = totalCount + 1")
+                        .update();
+                ThrowUtils.throwIf(!update, ErrorCode.OPERATION_ERROR, "额度更新失败");
+            }
             return picture; // 用不到返回值，此处随便返回即可
         });
 
@@ -354,14 +354,12 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         // 1.首先取出分页的值，并用列表接收
         List<Picture> pictureList = picturePage.getRecords();
         // 2.新建一个分页对象,并获取全部参数
-        Page<PictureVO> pictureVOPage = new Page<>();
-        List<PictureVO> records = pictureVOPage.getRecords();
-        long total = pictureVOPage.getTotal();
-        long size = pictureVOPage.getSize();
-        long current = pictureVOPage.getCurrent();
+        Page<PictureVO> pictureVOPage = new Page<>(picturePage.getCurrent(), picturePage.getSize(), picturePage.getTotal());
 
         // 3.判断：如果分页列表为空，直接返回分页
         if (CollUtil.isEmpty(pictureList)) {
+            // 并获取数据到一个空列表中
+            pictureVOPage.setRecords(Collections.emptyList());
             return pictureVOPage;
         }
 

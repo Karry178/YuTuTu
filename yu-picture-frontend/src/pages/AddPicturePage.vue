@@ -3,15 +3,18 @@
     <h2 style="margin-bottom: 16px">
       {{ route.query?.id ? '修改图片' : '创建图片' }}
     </h2>
+    <a-typography v-if="spaceId" type="secondary">
+      保存至空间：<a :href="`/space/${spaceId}`" target="_blank">{{ spaceId }} </a>
+    </a-typography>
     <!-- 使用选项卡组件 -> 选择上传方式 -->
     <a-tabs v-model:activeKey="uploadType">
       <a-tab-pane key="file" tab="文件上传">
         <!-- 图片文件上传组件 -->
-        <PictureUpload :picture="picture" :onSuccess="onSuccess" />
+        <PictureUpload :picture="picture" :spaceId="spaceId" :onSuccess="onSuccess" />
       </a-tab-pane>
       <a-tab-pane key="url" tab="URL上传" force-render>
         <!-- URL图片上传组件 -->
-        <UrlPictureUpload :picture="picture" :onSuccess="onSuccess" />
+        <UrlPictureUpload :picture="picture" :spaceId="spaceId" :onSuccess="onSuccess" />
       </a-tab-pane>
     </a-tabs>
     <!-- 图片信息表单 -->
@@ -34,7 +37,7 @@
           allow-clear
         />
       </a-form-item>
-      <a-form-item name="category" label="名称">
+      <a-form-item name="category" label="分类">
         <a-auto-complete
           v-model:value="pictureForm.category"
           :options="categoryOptions"
@@ -60,7 +63,7 @@
 
 <script setup lang="ts">
 import PictureUpload from '@/components/PictureUpload.vue'
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   editPictureUsingPost,
@@ -76,14 +79,19 @@ const pictureForm = reactive<API.PictureEditRequest>({
 })
 // 定义两种上传方式：file和url，且默认为file上传
 const uploadType = ref<'file' | 'url'>('file')
+// 路由组件，作用：跳转新页面
+const router = useRouter()
+// 通过route获取信息，通过router实现跳转页面
+const route = useRoute()
+// 空间 id 展示，使用computed计算属性，可以保证当页面变化时，space的值会跟着改变
+const spaceId = computed(() => {
+  return route.query?.spaceId;
+})
 
 const onSuccess = (newPicture: API.PictureVO) => {
   picture.value = newPicture
   pictureForm.name = newPicture.name
 }
-
-// 路由组件，作用：跳转新页面
-const router = useRouter()
 
 /**
  * 提交表单
@@ -97,6 +105,7 @@ const handleSubmit = async (values: API.PictureEditRequest) => {
 
   const res = await editPictureUsingPost({
     id: pictureId,
+    spaceId: spaceId.value,
     ...values,
   })
   // 操作成功
@@ -138,9 +147,6 @@ const getTagCategoryOptions = async () => {
     message.error('获取标签和分类失败' + res.data.message)
   }
 }
-
-// 通过route获取信息，通过router实现跳转页面
-const route = useRoute()
 
 onMounted(() => {
   getTagCategoryOptions()

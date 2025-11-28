@@ -174,8 +174,13 @@ const columns = [
     dataIndex: 'picInfo',
   },
   {
-    title: '用户id',
+    title: '用户 id',
     dataIndex: 'userId',
+    width: 80,
+  },
+  {
+    title: '空间 id',
+    dataIndex: 'spaceId',
     width: 80,
   },
   {
@@ -235,6 +240,7 @@ const doTableChange = (page: any) => {
 const fetchData = async () => {
   const res = await listPictureByPageUsingPost({
     ...searchParams,
+    // nullSpaceId: true,
   })
   // 如果res的数据存在且res.data.code === 0，获取records，如果records不存在获取空数组
   if (res.data.code === 0 && res.data.data) {

@@ -304,9 +304,10 @@ public class PictureController {
         } else {
             // 私有空间
             User loginUser = userService.getLoginUser(request);
+            Long loginUserId = loginUser.getId(); // 获取登录用户id
             Space space = spaceService.getById(spaceId);
             ThrowUtils.throwIf(space == null,ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-            if (!loginUser.equals(space.getUserId())) {
+            if (!loginUserId.equals(space.getUserId()) && !userService.isAdmin(loginUser)) {
                 throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间权限");
             }
         }

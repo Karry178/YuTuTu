@@ -29,51 +29,27 @@
         </a-checkable-tag>
       </a-space>
     </div>
-
-    <!-- 图片列表 -->
-    <a-list
-      :grid="{ gutter: 16, xs: 1, sm: 2, md: 3, lg: 4, xl: 5, xxl: 6 }"
-      :data-source="dataList"
-      :pagination="pagination"
-    >
-      <template #renderItem="{ item: picture }">
-        <a-list-item style="padding: 0">
-          <!-- 单张图片 -->
-          <a-card hoverable @click="doClickPicture(picture)">
-            <template #cover>
-              <img
-                :alt="picture.name"
-                :src="picture.thumbnailUrl ?? picture.url"
-                style="height: 180px; object-fit: cover"
-              />
-            </template>
-            <a-card-meta :title="picture.name">
-              <template #description>
-                <a-flex>
-                  <a-tag color="green">
-                    {{ picture.category ?? '默认' }}
-                  </a-tag>
-                  <a-tag v-for="tag in picture.tags" :key="tag">
-                    {{ tag }}
-                  </a-tag>
-                </a-flex>
-              </template>
-            </a-card-meta>
-          </a-card>
-        </a-list-item>
-      </template>
-    </a-list>
+    <!-- 图片列表,直接调用 -->
+    <PictureList :dataList="dataList" :loading="loading" />
+    <!-- 分页 -->
+    <a-pagination
+      style="text-align: right"
+      v-model:current="searchParams.current"
+      v-model:pageSize="searchParams.pageSize"
+      :total="total"
+      @change="onPageChange"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   listPictureTagCategoryUsingGet,
   listPictureVoByPageUsingPost,
 } from '@/api/pictureController.ts'
-import { useRoute, useRouter } from 'vue-router'
+import PictureList from '@/components/PictureList.vue'
 
 // 定义数据：从后端获取,后端管理员获取图片列表的返回值为PictureVO,所以前端从API拿到PictureVO即可
 const dataList = ref<API.PictureVO[]>([])
@@ -92,27 +68,6 @@ const searchParams = reactive<API.PictureQueryRequest>({
   sortOrder: 'descend',
 })
 
-// 分页参数：使用computed渲染函数包裹一层，就可以实现动态改变值
-const pagination = computed(() => {
-  return {
-    current: searchParams.current,
-    pageSize: searchParams.pageSize,
-    total: total.value,
-    onChange: (page: number, pageSize: number) => {
-      searchParams.current = page
-      searchParams.pageSize = pageSize
-      fetchData()
-    },
-  }
-})
-
-// 表格变化后重新获取数据
-/*const doTableChange = (page: any) => {
-  searchParams.current = page.current
-  searchParams.pageSize = page.pageSize
-  fetchData()
-}*/
-
 // 获取数据
 const fetchData = async () => {
   loading.value = true
@@ -127,9 +82,10 @@ const fetchData = async () => {
   }
 
   selectedTagList.value.forEach((useTag, index) => {
-    if (useTag) {
+    const tag = tagList.value[index]
+    if (useTag && tag) {
       // 如果标签使用了，就取出当前标签的值，放在数组中
-      params.tags.push(tagList.value[index])
+      params.tags.push(tag)
     }
   })
 
@@ -149,6 +105,13 @@ onMounted(() => {
   fetchData()
 })
 
+// 分页参数
+const onPageChange = (page: number, pageSize: number) => {
+  searchParams.current = page
+  searchParams.pageSize = pageSize
+  fetchData()
+}
+
 // 搜索图片
 const doSearch = () => {
   // 每次搜索都要重置搜索条件，将图片重新回到第一张
@@ -161,7 +124,7 @@ const doSearch = () => {
 const categoryList = ref<Array<{ value: string; label: string }>>([])
 const tagList = ref<Array<{ value: string; label: string }>>([])
 const selectedCategory = ref<String>('all')
-const selectedTagList = ref<boolean[]>([true, false])
+const selectedTagList = ref<boolean[]>([])
 
 /**
  * 获取标签和分类选项
@@ -171,21 +134,11 @@ const getTagCategoryOptions = async () => {
   // 操作成功
   if (res.data.code === 0 && res.data.data) {
     tagList.value = res.data.data.tagList ?? []
+    selectedTagList.value = tagList.value.map(() => false)
     categoryList.value = res.data.data.categoryList ?? []
   } else {
     message.error('获取标签和分类失败' + res.data.message)
   }
-}
-
-// 通过route获取信息，通过router实现跳转页面
-const route = useRoute()
-const router = useRouter();
-
-// 点击图片实现图片详情页的跳转
-const doClickPicture = (picture: API.PictureVO) => {
-  router.push({
-    path: `/picture/${picture.id}`,
-  })
 }
 
 onMounted(() => {
@@ -195,7 +148,7 @@ onMounted(() => {
 
 <style scoped>
 #homePage {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 #homePage .search-bar {

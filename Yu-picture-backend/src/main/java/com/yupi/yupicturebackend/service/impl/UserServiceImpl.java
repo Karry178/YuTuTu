@@ -312,7 +312,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             return false;
         }
         if (UserRoleEnum.ADMIN.getValue().equals(user.getUserRole())) {
-            return false;
+            return true;
         }
         return false;
     }

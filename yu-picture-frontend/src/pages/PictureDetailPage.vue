@@ -79,6 +79,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { deletePicUsingPost, getPictureVoByIdUsingGet } from '@/api/pictureController.ts'
+import { DeleteOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons-vue'
 import { downloadImage, formatSize } from '@/utils'
 import { useLoginUserStore } from '@/stores/useLoginUserStore.ts'
 import router from '@/router'
@@ -127,7 +128,14 @@ onMounted(() => {
 
 // 编辑图片
 const doEdit = () => {
-  router.push('/add_picture?id=' + picture.value.id)
+  // 跳转时一定要携带spaceId
+  router.push({
+    path: "/add_picture",
+    query: {
+      id: picture.value.id,
+      spaceId: picture.value.spaceId,
+    }
+  })
 }
 // 删除图片
 const doDelete = async () => {
