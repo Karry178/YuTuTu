@@ -1,22 +1,43 @@
 <template>
   <div id="spaceDetailPage">
     <!-- 展示空间基本信息 -->
-    <a-flex justify="space-between" align="middle" >
+    <a-flex justify="space-between" align="middle">
       <h2>{{ space.spaceName }} {私有空间}</h2>
       <a-space size="middle">
         <!-- 前面有 :表示Vue在做属性绑定 -->
-        <a-button type="primary" :href="`/add_picture?spaceId=${id}`" target="_blank">+ 创建图片</a-button>
-        <a-tooltip :title="`占用空间 ${formatSize(space.totalSize)} / ${formatSize(space.maxSize)}`">
+        <a-button type="primary" :href="`/add_picture?spaceId=${id}`" target="_blank"
+          >+ 创建图片
+        </a-button>
+        <a-button
+          :icon="h(EditOutlined)"
+          @click="doBatchEdit"
+          >批量编辑图片
+        </a-button>
+        <a-tooltip
+          :title="`占用空间 ${formatSize(space.totalSize)} / ${formatSize(space.maxSize)}`"
+        >
           <a-progress
             type="circle"
             :size="40"
-            :percent="space.maxSize ? Number(((space.totalSize || 0) * 100 / space.maxSize).toFixed(1)) : 0"
+            :percent="
+              space.maxSize
+                ? Number((((space.totalSize || 0) * 100) / space.maxSize).toFixed(1))
+                : 0
+            "
           />
         </a-tooltip>
       </a-space>
     </a-flex>
     <div style="margin-bottom: 16px" />
-    <!-- 图片列表,直接调用,加上showOp可以只在空间详情页显示编辑等按钮 -->
+    <!-- 搜索表单，引入PictureSearchForm -->
+    <PictureSearchForm :onSearch="onSearch" />
+    <div style="margin-bottom: 16px" />
+    <!-- 按颜色搜索 -->
+    <a-form-item label="按颜色搜索">
+      <color-picker format="hex" @pureColorChange="onColorChange" />
+    </a-form-item>
+
+    <!-- 图片列表，直接调用,加上showOp可以只在空间详情页显示编辑等按钮 -->
     <PictureList :dataList="dataList" :loading="loading" :showOp="true" :onReload="fetchData" />
     <!-- 分页 -->
     <a-pagination
@@ -26,16 +47,30 @@
       :total="total"
       @change="onPageChange"
     />
+    <BatchEditPictureModal
+      ref="batchEditPictureModalRef"
+      :spaceId="id"
+      :pictureList="dataList"
+      :onSuccess="onBatchEditPictureSuccess"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { h, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { getSpaceVoByIdUsingGet } from '@/api/spaceController.ts'
-import { listPictureVoByPageUsingPost } from '@/api/pictureController.ts'
+import {
+  listPictureVoByPageUsingPost,
+  searchPictureByColorUsingPost,
+} from '@/api/pictureController.ts'
 import { formatSize } from '@/utils'
 import PictureList from '@/components/PictureList.vue'
+import PictureSearchForm from '@/components/PictureSearchForm.vue'
+import { ColorPicker } from 'vue3-colorpicker'
+import 'vue3-colorpicker/style.css'
+import BatchEditPictureModal from '@/components/BatchEditPictureModal.vue'
+import { EditOutlined } from '@ant-design/icons-vue'
 
 interface Props {
   id: string | number
@@ -76,7 +111,7 @@ const loading = ref(true)
  * reactive: 适用于对 对象内的字段监控 的场景，只要对象内任意值改变，都要重新获取页面
  * ref: 适应于单个变量（字符串、整型等）或者数组，只在乎 后面传的这个值整体有没有改变
  */
-const searchParams = reactive<API.PictureQueryRequest>({
+const searchParams = ref<API.PictureQueryRequest>({
   current: 1,
   pageSize: 12,
   sortField: 'createTime',
@@ -89,7 +124,7 @@ const fetchData = async () => {
   // 转换搜索参数
   const params = {
     spaceId: props.id,
-    ...searchParams,
+    ...searchParams.value,
   }
 
   const res = await listPictureVoByPageUsingPost(params)
@@ -110,9 +145,51 @@ onMounted(() => {
 
 // 分页参数
 const onPageChange = (page: number, pageSize: number) => {
-  searchParams.current = page
-  searchParams.pageSize = pageSize
+  searchParams.value.current = page
+  searchParams.value.pageSize = pageSize
   fetchData()
+}
+
+// 搜索
+const onSearch = (newSearchParams: API.PictureQueryRequest) => {
+  searchParams.value = {
+    ...searchParams.value,
+    ...newSearchParams,
+    current: 1,
+  }
+  fetchData()
+}
+
+// 按颜色搜索
+const onColorChange = async (color: string) => {
+  loading.value = true
+  const res = await searchPictureByColorUsingPost({
+    picColor: color,
+    spaceId: props.id,
+  })
+  if (res.data.code === 0 && res.data.data) {
+    const data = res.data.data ?? []
+    dataList.value = data
+    total.value = data.length
+  } else {
+    message.error('读取数据失败', +res.data.message)
+  }
+  loading.value = false
+}
+
+// ======================= 批量编辑图片 =======================
+const batchEditPictureModalRef = ref()
+
+// 批量编辑图片成功
+const onBatchEditPictureSuccess = () => {
+  fetchData()
+}
+
+// 打开批量编辑图片弹窗
+const doBatchEdit = () => {
+  if (batchEditPictureModalRef.value) {
+    batchEditPictureModalRef.value.openModal()
+  }
 }
 </script>
 

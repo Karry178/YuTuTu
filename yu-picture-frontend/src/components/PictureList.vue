@@ -8,7 +8,7 @@
     >
       <template #renderItem="{ item: picture }">
         <a-list-item style="padding: 0">
-          <!-- 单张图片 -->
+          <!-- 展示单张图片 -->
           <a-card hoverable @click="doClickPicture(picture)">
             <template #cover>
               <img
@@ -30,9 +30,17 @@
               </template>
             </a-card-meta>
             <template v-if="showOp" #actions>
+              <a-space @click="(e) => doSearch(picture, e)">
+                <SearchOutlined />
+                搜索
+              </a-space>
               <a-space @click="(e) => doEdit(picture, e)">
                 <EditOutlined />
                 编辑
+              </a-space>
+              <a-space @click="(e) => doShare(picture, e)">
+                <ShareAltOutlined />
+                分享
               </a-space>
               <a-space @click="(e) => doDelete(picture, e)">
                 <DeleteOutlined />
@@ -43,15 +51,23 @@
         </a-list-item>
       </template>
     </a-list>
+    <!-- 传入分享组件：ShareModal -->
+    <ShareModal ref="shareModalRef" :link="shareLink" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { DeleteOutlined, EditOutlined } from '@ant-design/icons-vue'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  SearchOutlined,
+  ShareAltOutlined,
+} from '@ant-design/icons-vue'
 import { deletePicUsingPost } from '@/api/pictureController.ts'
 import { message } from 'ant-design-vue'
+import ShareModal from '@/components/ShareModal.vue'
 
 // 定义一个属性：用来接收dataList
 interface Props {
@@ -82,17 +98,24 @@ const doClickPicture = (picture: API.PictureVO) => {
   })
 }
 
+// 搜索图片
+const doSearch = (picture, e) => {
+  // 阻止冒泡
+  e.stopPropagation()
+  // 打开新的页面
+  window.open(`/searchPicture?pictureId=${picture.id}`)
+}
 // 编辑图片
 const doEdit = (picture, e) => {
   // 阻止冒泡
   e.stopPropagation()
   // 跳转时一定要携带spaceId
   router.push({
-    path: "/add_picture",
+    path: '/add_picture',
     query: {
       id: picture.id,
       spaceId: picture.spaceId,
-    }
+    },
   })
 }
 // 删除图片
@@ -109,6 +132,20 @@ const doDelete = async (picture, e) => {
     props.onReload?.() // 重新查询数据
   } else {
     message.error('删除失败')
+  }
+}
+
+// =========== 分享操作 ===========
+const shareModalRef = ref()
+// 分享链接
+const shareLink = ref<String>()
+// 分享函数
+const doShare = (picture, e) => {
+  // 阻止冒泡
+  e.stopPropagation()
+  shareLink.value = `${window.location.protocol}//${window.location.host}/picture/${picture.id}`
+  if (shareModalRef.value) {
+    shareModalRef.value.openModal()
   }
 }
 </script>

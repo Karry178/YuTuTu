@@ -95,7 +95,7 @@ public abstract class PictureUploadTemplate {
                     thumbnailCiObject = objectList.get(1);
                 }
                 // 封装压缩图的返回结果
-                return buildResult(originalFilename, compressedCiObject, thumbnailCiObject);
+                return buildResult(originalFilename, compressedCiObject, thumbnailCiObject, imageInfo);
             }
 
             // 调用 封装返回结果的方法，返回可以访问的地址
@@ -140,12 +140,14 @@ public abstract class PictureUploadTemplate {
 
     /**
      * 压缩后的封装返回结果
-     * @param originalFilename 初始文件名
+     *
+     * @param originalFilename   初始文件名
      * @param compressedCiObject 压缩后的对象
-     * @param thumbnailCiObject 图片的缩略图
+     * @param thumbnailCiObject  图片的缩略图
+     * @param imageInfo 图片信息
      * @return
      */
-    private UploadPictureResult buildResult(String originalFilename, CIObject compressedCiObject, CIObject thumbnailCiObject) {
+    private UploadPictureResult buildResult(String originalFilename, CIObject compressedCiObject, CIObject thumbnailCiObject, ImageInfo imageInfo) {
         int picWidth = compressedCiObject.getWidth();
         int picHeight = compressedCiObject.getHeight();
         // 计算宽高比：先用NumberUtil的round方法四舍五入计算的值，并保留2位小数，最后通过doubleValue方法取出值
@@ -162,6 +164,7 @@ public abstract class PictureUploadTemplate {
         uploadPictureResult.setPicHeight(picHeight);
         uploadPictureResult.setPicScale(picScale);
         uploadPictureResult.setPicFormat(compressedCiObject.getFormat());
+        uploadPictureResult.setPicColor(imageInfo.getAve());
 
         // 设置缩略图地址
         uploadPictureResult.setThumbnailUrl(cosClientConfig.getHost() + "/" + thumbnailCiObject.getKey());
@@ -195,6 +198,7 @@ public abstract class PictureUploadTemplate {
         uploadPictureResult.setPicHeight(imageInfo.getHeight());
         uploadPictureResult.setPicScale(picScale);
         uploadPictureResult.setPicFormat(imageInfo.getFormat());
+        uploadPictureResult.setPicColor(imageInfo.getAve()); // Ave就是图片主色调
 
         // 最后，返回可访问的地址
         return uploadPictureResult;

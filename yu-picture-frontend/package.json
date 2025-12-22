@@ -23,7 +23,8 @@
     "pinia": "^3.0.3",
     "tslib": "^2.8.1",
     "vue": "^3.5.22",
-    "vue-router": "^4.6.3"
+    "vue-router": "^4.6.3",
+    "vue3-colorpicker": "^2.3.0"
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.2",

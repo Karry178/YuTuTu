@@ -85,7 +85,7 @@ const router = useRouter()
 const route = useRoute()
 // 空间 id 展示，使用computed计算属性，可以保证当页面变化时，space的值会跟着改变
 const spaceId = computed(() => {
-  return route.query?.spaceId;
+  return route.query?.spaceId
 })
 
 const onSuccess = (newPicture: API.PictureVO) => {
@@ -112,7 +112,7 @@ const handleSubmit = async (values: API.PictureEditRequest) => {
   if (res.data.code === 0 && res.data.data) {
     message.success('创建成功')
     // 然后跳转到图片详情页
-    router.push({
+    await router.push({
       path: `/picture/${pictureId}`,
     })
   } else {
