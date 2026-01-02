@@ -36,24 +36,24 @@ const props = defineProps<Props>()
  * 【重点】上传图片
  */
 const handleUpload = async ({ file }: any) => {
-  loading.value = true;
+  loading.value = true
 
   try {
-    const params: API.PictureUploadRequest = props.picture ? {id : props.picture.id} : {};
-    params.spaceId = props.spaceId;
+    const params: API.PictureUploadRequest = props.picture ? { id: props.picture.id } : {}
+    params.spaceId = props.spaceId
     const res = await uploadPictureUsingPost(params, {}, file)
     if (res.data.code === 0 && res.data.data) {
       message.success('图片上传成功')
       // 调用父组件，更改父组件的值，才算上传成功
-      props.onSuccess?.(res.data.data);
+      props.onSuccess?.(res.data.data)
     } else {
-      message.error('图片上传失败' + res.data.message);
+      message.error('图片上传失败' + res.data.message)
     }
   } catch (error) {
     console.error('图片上传失败,' + error.message)
   }
 
-  loading.value = false;
+  loading.value = false
 }
 
 const loading = ref<boolean>(false)
@@ -74,6 +74,10 @@ const beforeUpload = (file: UploadProps['fileList'][number]) => {
     message.error('不能上传超过2M的图片')
   }
   return isJpgOrPng && isLt2M
+}
+
+const handleChange: UploadProps['onChange'] = () => {
+  // 这里不需要额外逻辑，上传成功后的展示由父组件传入的 picture.url 控制
 }
 </script>
 <style scoped>

@@ -149,7 +149,7 @@ const rangePresets = ref([
   { label: '过去 7天', value: [dayjs().add(-7, 'd'), dayjs()] },
   { label: '过去 14天', value: [dayjs().add(-14, 'd'), dayjs()] },
   { label: '过去 30天', value: [dayjs().add(-30, 'd'), dayjs()] },
-  { label: '过去 90天', value: [dayjs().add(-90, 'd'), dayjs()] },
+  { label: '过去 90天', value: [dayjs().add(-90, 'd'), dayjs()] },14
 ])
 
 //  清理选项

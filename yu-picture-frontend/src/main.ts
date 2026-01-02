@@ -8,6 +8,9 @@ import router from './router'
 import Antd from 'ant-design-vue';
 import 'ant-design-vue/dist/reset.css';
 import '@/access.ts'
+// Vue-Cropper 图片裁剪库
+import VueCopper, {VueCropper} from 'vue-cropper'
+import 'vue-cropper/dist/index.css'
 
 
 // main.ts 是全局注册组件的入口文件
@@ -23,6 +26,8 @@ app.use(router)
 // 2.3 注册 Ant Design Vue
 app.use(Antd)
 
+// 图片裁剪插件 vue-cropper
+// app.use(VueCropper)
 
 // 3. 应用挂载：将 Vue 应用挂载到 HTML 中的某个 DOM 元素上。
 app.mount('#app')
