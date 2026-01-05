@@ -19,11 +19,14 @@
   "dependencies": {
     "ant-design-vue": "^4.2.6",
     "axios": "^1.13.1",
+    "echarts": "^5.0.1",
+    "echarts-wordcloud": "^2.1.0",
     "file-saver": "^2.0.5",
     "pinia": "^3.0.3",
     "tslib": "^2.8.1",
     "vue": "^3.5.22",
     "vue-cropper": "^1.1.4",
+    "vue-echarts": "^7.0.1",
     "vue-router": "^4.6.3",
     "vue3-colorpicker": "^2.3.0"
   },

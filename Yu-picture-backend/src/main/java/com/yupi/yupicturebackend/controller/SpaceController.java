@@ -76,10 +76,11 @@ public class SpaceController {
         ThrowUtils.throwIf(oldSpace == null,ErrorCode.NOT_FOUND_ERROR, "要删除的空间不存在");
 
         // 4.如果查到的oldSpace存在了，只允许管理员和本人删除
-        if (!oldSpace.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
+        spaceService.checkSpaceAuth(loginUser, oldSpace);
+        /*if (!oldSpace.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
             // 不是这两个角色，就报无权限错误，不允许删除
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "你无权限删除");
-        }
+        }*/
 
         // 5.最后一步：操作数据库，删除查到的space
         boolean result = spaceService.removeById(id);
@@ -177,10 +178,8 @@ public class SpaceController {
         Space oldSpace = spaceService.getById(id);
         ThrowUtils.throwIf(oldSpace == null, ErrorCode.NOT_FOUND_ERROR);
 
-        // 4.【权限】只有本人和管理员可以编辑space
-        if (!oldSpace.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
+        // 4.【权限】只有本人和管理员可以编辑space -> 调用SpaceService的checkSpaceAuth()方法
+        spaceService.checkSpaceAuth(loginUser, oldSpace);
 
         // 5.操作数据库
         boolean result = spaceService.updateById(space);
