@@ -30,22 +30,13 @@
               </template>
             </a-card-meta>
             <template v-if="showOp" #actions>
-              <a-space @click="(e) => doSearch(picture, e)">
-                <SearchOutlined />
-                搜索
-              </a-space>
-              <a-space @click="(e) => doEdit(picture, e)">
-                <EditOutlined />
-                编辑
-              </a-space>
-              <a-space @click="(e) => doShare(picture, e)">
-                <ShareAltOutlined />
-                分享
-              </a-space>
-              <a-space @click="(e) => doDelete(picture, e)">
-                <DeleteOutlined />
-                删除
-              </a-space>
+              <!-- 分享和搜索：所有人都可以使用 -->
+              <shareAltOutlined @click="(e) => doShare(picture, e)" />
+              <SearchOutlined @click="(e) => doSearch(picture, e)" />
+              <!-- 分享和搜索：所有人都可以使用 -->
+              <EditOutlined v-if="props.canEdit" @click="(e) => doEdit(picture, e)" />
+              <!-- 分享和搜索：所有人都可以使用 -->
+              <DeleteOutlined v-if="props.canDelete" @click="(e) => doDelete(picture, e)" />
             </template>
           </a-card>
         </a-list-item>
@@ -74,6 +65,8 @@ interface Props {
   dataList?: API.PictureVO[]
   loading?: boolean
   showOp?: boolean
+  canEdit?: boolean
+  canDelete?: boolean
   onReload?: () => void // 重新出发加载的组件：告诉外层，做了操作，需要在外层重新查询数据
 }
 // 定义一个默认值
@@ -81,6 +74,8 @@ const props = withDefaults(defineProps<Props>(), {
   dataList: () => [],
   loading: false,
   showOp: false, // 这样主页就不会显示空间页面的编辑按钮了
+  canEdit: false,
+  canDelete: false,
 })
 
 // 定义数据：从后端获取,后端管理员获取图片列表的返回值为PictureVO,所以前端从API拿到PictureVO即可

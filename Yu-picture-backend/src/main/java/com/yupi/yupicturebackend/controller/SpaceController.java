@@ -8,6 +8,7 @@ import com.yupi.yupicturebackend.common.ResultUtils;
 import com.yupi.yupicturebackend.exception.BusinessException;
 import com.yupi.yupicturebackend.exception.ErrorCode;
 import com.yupi.yupicturebackend.exception.ThrowUtils;
+import com.yupi.yupicturebackend.manager.auth.SpaceUserAuthManager;
 import com.yupi.yupicturebackend.model.constant.UserConstant;
 import com.yupi.yupicturebackend.model.dto.space.*;
 import com.yupi.yupicturebackend.model.entity.Space;
@@ -38,6 +39,10 @@ public class SpaceController {
     // 引入SpaceService
     @Resource
     private SpaceService spaceService;
+
+    // 引入SpaceUserAuthManager，目的是获取权限列表PermissionList
+    @Resource
+    private SpaceUserAuthManager spaceUserAuthManager;
 
 
     // 【增】新增空间
@@ -149,8 +154,17 @@ public class SpaceController {
         // 查询数据库
         Space space = spaceService.getById(id);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR);
+
+        // 【团队空间】获取当前登录用户信息并返回VO
+        SpaceVO spaceVO = spaceService.getSpaceVO(space, request);
+        User loginUser = userService.getLoginUser(request);
+        // 然后调用spaceUserAuthManager的getPermissionList方法获取权限列表
+        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
+        // 把得到的permissionList设置到spaceVO里
+        spaceVO.setPermissionList(permissionList);
+
         // 获取VO封装类
-        return ResultUtils.success(spaceService.getSpaceVO(space, request));
+        return ResultUtils.success(spaceVO);
     }
 
 

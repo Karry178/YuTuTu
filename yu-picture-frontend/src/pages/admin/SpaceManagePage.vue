@@ -5,8 +5,12 @@
       <h2>空间管理</h2>
       <a-space>
         <a-button type="primary" href="/add_space" target="_blank">+ 创建空间</a-button>
-        <a-button type="primary" ghost href="/space_analyze?queryPublic=1" target="_blank">公共图库分析</a-button>
-        <a-button type="primary" ghost href="/space_analyze?queryAll=1" target="_blank">全空间分析</a-button>
+        <a-button type="primary" ghost href="/space_analyze?queryPublic=1" target="_blank"
+          >公共图库分析</a-button
+        >
+        <a-button type="primary" ghost href="/space_analyze?queryAll=1" target="_blank"
+          >全空间分析</a-button
+        >
       </a-space>
     </a-flex>
     <div style="margin-bottom: 16px" />
@@ -27,6 +31,15 @@
           allow-clear
         />
       </a-form-item>
+      <a-form-item name="spaceLevel" label="空间类别">
+        <a-select
+          v-model:value="searchParams.spaceType"
+          placeholder="请选择空间类别"
+          :options="SPACE_TYPE_OPTIONS"
+          style="min-width: 180px"
+          allow-clear
+        />
+      </a-form-item>
       <a-form-item>
         <a-button type="primary" html-type="submit">搜索</a-button>
       </a-form-item>
@@ -43,7 +56,11 @@
       <template #bodyCell="{ column, record }">
         <!-- 审核信息列 -->
         <template v-if="column.dataIndex === 'spaceLevel'">
-          <div>审核状态：{{ SPACE_LEVEL_MAP[record.spaceLevel] }}</div>
+          <div>{{ SPACE_LEVEL_MAP[record.spaceLevel] }}</div>
+        </template>
+        <!-- 空间类别 -->
+        <template v-if="column.dataIndex === 'spaceType'">
+          <a-tag>{{ SPACE_TYPE_MAP[record.spaceType] }}</a-tag>
         </template>
         <!-- 图片信息列 -->
         <template v-if="column.dataIndex === 'spaceUseInfo'">
@@ -92,7 +109,12 @@ import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { deletePicUsingPost } from '@/api/pictureController.ts'
 import { listSpaceByPageUsingPost } from '@/api/spaceController.ts'
-import { SPACE_LEVEL_MAP, SPACE_LEVEL_OPTIONS } from '@/constants/space.ts'
+import {
+  SPACE_LEVEL_MAP,
+  SPACE_LEVEL_OPTIONS,
+  SPACE_TYPE_MAP,
+  SPACE_TYPE_OPTIONS,
+} from '@/constants/space.ts'
 import { formatSize } from '@/utils'
 
 const columns = [
@@ -108,6 +130,10 @@ const columns = [
   {
     title: '空间级别',
     dataIndex: 'spaceLevel',
+  },
+  {
+    title: '空间类别',
+    dataIndex: 'spaceType',
   },
   {
     title: '使用情况',

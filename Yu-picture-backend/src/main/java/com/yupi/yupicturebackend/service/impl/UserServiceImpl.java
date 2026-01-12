@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yupi.yupicturebackend.exception.BusinessException;
 import com.yupi.yupicturebackend.exception.ErrorCode;
 import com.yupi.yupicturebackend.exception.ThrowUtils;
+import com.yupi.yupicturebackend.manager.auth.StpKit;
 import com.yupi.yupicturebackend.model.constant.UserConstant;
 import com.yupi.yupicturebackend.model.dto.user.UserQueryRequest;
 import com.yupi.yupicturebackend.model.entity.User;
@@ -150,9 +151,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             log.info("user login field, userAccount cannot match userPassword");
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在或者密码错误");
         }
-        // 4.保存用户的登录态 -> 通过request请求通过前端穿的SessionId得到其唯一的Session空间,并给这个空间设置值
-        // 为什么要设置常量呢？
+
+        // 4.保存用户的登录态
+        // -> 通过request请求通过前端穿的SessionId得到其唯一的Session空间,并给这个空间设置值
         request.getSession().setAttribute(UserConstant.USER_LOGIN_STATE, user);
+        // -> 拿到Space.Login()，使用Sa-Token的Stp方法,保存登录态到UserConstant.USER_LOGIN_STATE
+        StpKit.SPACE.login(user.getId());
+        StpKit.SPACE.getSession().set(UserConstant.USER_LOGIN_STATE, user);
+
         // 5.调用脱敏方法，返回给前端脱敏后的用户登录信息
         return this.getLoginUserVO(user);
     }

@@ -98,3 +98,36 @@ create index inx_spaceId on picture (spaceId);
 -- 添加新列 -> 图片主色调
 alter table picture
     ADD COLUMN picColor varchar(16) null comment '图片主色调';
+
+-- 十一期：团队空间
+-- 添加新列，支持空间类型
+ALTER TABLE space
+    ADD COLUMN spaceType int default 0 not null comment '空间类型：0-私有，1-团队';
+-- 再给spaceType增加一个索引
+CREATE INDEX idx_spaceType ON space (spaceType);
+
+-- 添加空间成员表
+create table if not exists space_user
+(
+    id         bigint auto_increment comment 'id' primary key,
+    spaceId    bigint                                 not null comment '空间id',
+    userId     bigint                                 not null comment '用户id',
+    spaceRole  varchar(128) default 'viewer'          null comment '空间角色: viewer/editor/admin',
+    createTime datetime     default CURRENT_TIMESTAMP not null comment '创建时间',
+    updateTime datetime     default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
+
+    -- 索引设计
+    UNIQUE KEY uk_spaceId_userId (spaceId, userId), -- 唯一索引
+    INDEX idx_spaceId (spaceId),                    -- 提升按空间查询的性能
+    INDEX idx_userId (userId)                       -- 提升按用户查询的性能
+) comment '空间用户关联' collate = utf8mb4_unicode_ci;
+
+
+SELECT TABLE_NAME
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'yu_picture'
+  AND TABLE_NAME LIKE 'picture%';
+
+
+DROP TABLE IF EXISTS yu_picture.picture_2009535827909464066;
+

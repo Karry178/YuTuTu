@@ -21,7 +21,7 @@ import cn.hutool.http.HttpRequest;
 public class AliYunAiApi {
 
     // 读取配置文件(.yml)
-    @Value("${aliYunAi.apiKey}")
+    @Value("${aliYunAi.apiKey:}")
     private String apiKey;
 
     // 创建任务地址

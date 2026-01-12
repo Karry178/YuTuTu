@@ -8,22 +8,25 @@ server:
         max-age: 2592000
 
 spring:
+  # 激活 local 配置文件
+  profiles:
+    active: local
   application:
     name: yu-picture-backend
     # 数据库 配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://192.168.0.103:3306/yu_picture?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=GMT%2B8
+    url: jdbc:mysql://localhost:3306/yu_picture?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=GMT%2B8
     username: root
-    password: 123456
+    password: your_password_here
 
   # Redis 配置
   redis:
     database: 0
-    host: 192.168.0.103
+    host: localhost
     port: 6379
     timeout: 5000
-    password: 123456
+    password: your_redis_password_here
 
   # Session 配置
   session:
@@ -36,6 +39,42 @@ spring:
     multipart:
       max-file-size: 10MB
 
+  # Apache ShardingSphere 分库分表：目的是空间图片分表
+  shardingsphere:
+    datasource:
+      names: yu_picture
+      yu_picture: # 必须在ShardingSphere里再配置一次数据库连接
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://localhost:3306/yu_picture
+        username: root
+        password: your_password_here
+    rules: # 定义分库分表的规则
+      sharding:
+        tables:
+          picture:
+            # 配置实际存在的表：逻辑表 + 已存在的分表（根据数据库实际表名配置）
+            # 注意：新增空间时需要手动添加对应的分表到这里
+            actual-data-nodes: yu_picture.picture,yu_picture.picture_2009535827909412129,yu_picture.picture_2009544448944840705,yu_picture.picture_2009535827909464066
+            table-strategy:
+              standard:
+                sharding-column: spaceId # 表示分表是按照spaceId这一列分表
+                sharding-algorithm-name: picture_sharding_algorithm # 使用自定义分片算法
+        # 自定义实现算法
+        sharding-algorithms:
+          picture_sharding_algorithm:
+            type: CLASS_BASED # 设置为基于类自定义的算法
+            props:
+              strategy: standard
+              # 设置自定义的动态分表算法实现类的路径
+              algorithmClassName: com.yupi.yupicturebackend.manager.sharding.PictureShardingAlgorithm
+    props:
+      sql-show: true # 目的是打印出实际执行的sql
+      # 确保允许执行DDL
+      check-table-metadata-enabled: false
+      # 禁用自动表发现，只使用配置文件中定义的表
+      sql-federation-type: NONE
+
 # MyBatis-Plus 配置
 mybatis-plus:
   configuration:
@@ -44,6 +83,8 @@ mybatis-plus:
     # 仅在开发环境打印日志
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
+    # 因为要使用MB-P提供的SqlRunner执行器，因此必须开启 enable-sql-runner
+    enable-sql-runner: true
     db-config:
       # 逻辑删除字段 -> 不会直接删除数据，而是把is_delete字段设置为1，0表示未删除，1表示已删除
       logic-delete-field: isDelete # 全局逻辑删除的实体字段名
@@ -63,3 +104,15 @@ knife4j:
         api-rule-resources:
           - com.yupi.yupicturebackend.controller # 接口位置为controller包
 
+# 对象存储配置(腾讯云API) - 占位符，实际值在 application-local.yml 中
+cos:
+  client:
+    host: https://your-bucket.cos.region.myqcloud.com
+    secretId: your_secret_id_here
+    secretKey: your_secret_key_here
+    region: ap-chengdu
+    bucket: your-bucket-name
+
+# 阿里云AI扩图配置 - 占位符，实际值在 application-local.yml 中
+aliYunAi:
+  apiKey: your_aliyun_api_key_here

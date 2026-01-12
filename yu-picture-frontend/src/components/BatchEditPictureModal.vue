@@ -1,6 +1,6 @@
 <template>
   <div class="batch-edit-picture-modal">
-    <a-button type="primary" @click="openModal">Open Modal</a-button>
+    <!-- <a-button type="primary" @click="openModal">Open Modal</a-button> -->
     <a-modal v-model:visible="visible" title="批量编辑图片" :footer="false" @cancel="closeModal">
       <a-typography-link type="secondary">* 只对当前页面的图片生效</a-typography-link>
 

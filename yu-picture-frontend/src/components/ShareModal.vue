@@ -1,16 +1,14 @@
 <template>
-  <div>
-    <a-button type="primary" @click="openModal">Open Modal</a-button>
-    <a-modal v-model:visible="visible" :title="title" :footer="false" @cancel="closeModal">
-      <h4>复制分享链接</h4>
-      <a-typography-link copyable>
-        {{ link }}
-      </a-typography-link>
-      <div style="margin-bottom: 16px" />
-      <h4>手机扫码查看</h4>
-      <a-qrcode :value="link" :icon="qrcodeIcon" />
-    </a-modal>
-  </div>
+  <!-- 移除了测试用的 "Open Modal" 按钮，只保留弹窗 -->
+  <a-modal v-model:visible="visible" :title="title" :footer="false" @cancel="closeModal">
+    <h4>复制分享链接</h4>
+    <a-typography-link copyable>
+      {{ link }}
+    </a-typography-link>
+    <div style="margin-bottom: 16px" />
+    <h4>手机扫码查看</h4>
+    <a-qrcode :value="link" :icon="qrcodeIcon" />
+  </a-modal>
 </template>
 
 <script lang="ts" setup>

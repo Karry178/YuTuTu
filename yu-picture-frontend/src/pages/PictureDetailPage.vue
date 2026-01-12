@@ -68,11 +68,8 @@
                 <DownloadOutlined />
               </template>
             </a-button>
-            <a-button v-if="canEdit" type="primary" ghost @click="doShare">
+            <a-button :icon="h(ShareAltOutlined)" type="primary" ghost @click="doShare">
               分享
-              <template #icon>
-                <ShareAltOutlined />
-              </template>
             </a-button>
             <a-button v-if="canEdit" type="default" @click="doEdit">
               编辑
@@ -80,7 +77,7 @@
                 <EditOutlined />
               </template>
             </a-button>
-            <a-button v-if="canEdit" danger @click="doDelete">
+            <a-button v-if="canDelete" danger @click="doDelete">
               删除
               <template #icon>
                 <DeleteOutlined />
@@ -96,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, h, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { deletePicUsingPost, getPictureVoByIdUsingGet } from '@/api/pictureController.ts'
 import {
@@ -109,6 +106,7 @@ import { downloadImage, formatSize, toHexColor } from '@/utils'
 import { useLoginUserStore } from '@/stores/useLoginUserStore.ts'
 import router from '@/router'
 import ShareModal from '@/components/ShareModal.vue'
+import { SPACE_PERMISSION_ENUM } from '@/constants/space.ts'
 
 interface Props {
   id: string | number
@@ -118,18 +116,16 @@ const props = defineProps<Props>()
 const picture = ref<API.PictureVO>({})
 const loginUserStore = useLoginUserStore()
 
-// 图片编辑
-// 是否具有编辑权限
-const canEdit = computed(() => {
-  const loginUser = loginUserStore.loginUser
-  // 未登录不可编辑
-  if (!loginUser.id) {
-    return false
-  }
-  // 仅本人或管理员可编辑
-  const user = picture.value.user || {}
-  return loginUser.id === user.id || loginUser.userRole === 'admin'
-})
+// 通用权限检查函数
+function createPermissionChecker(permission: string) {
+  return computed(() => {
+    return (picture.value.permissionList ?? []).includes(permission)
+  })
+}
+
+// 定义权限检查
+const canEdit = createPermissionChecker(SPACE_PERMISSION_ENUM.PICTURE_EDIT)
+const canDelete = createPermissionChecker(SPACE_PERMISSION_ENUM.PICTURE_DELETE)
 
 // 获取图片详情
 const fetchPictureDetail = async () => {

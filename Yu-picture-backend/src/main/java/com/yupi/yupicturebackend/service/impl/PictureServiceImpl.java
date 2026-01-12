@@ -132,10 +132,12 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             // 从Service层获取space后检验
             Space space = spaceService.getById(spaceId);
             ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "要操作的空间不存在");
+
+            // 下面这段代码修改为 使用统一的权限校验
             // 【新增】校验是否有空间的权限，仅空间的管理员可以上传图片！
-            if (!loginUser.getId().equals(space.getUserId())) {
+            /*if (!loginUser.getId().equals(space.getUserId())) {
                 throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-            }
+            }*/
 
             // 【校验额度】
             if (space.getTotalCount() >= space.getMaxCount()) {
@@ -158,10 +160,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             Picture oldPicture = this.getById(pictureId);
             ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
 
+            // 下面这段代码修改为 使用统一的权限校验
             // 仅本人和管理员可以编辑图片
-            if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
+            /*if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
                 throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-            }
+            }*/
 
             // 更新时判断空间id是否一致，避免老图片在空间A，现在新图片更新到了空间B
             // 若没传spaceId，则复用原有图片的spaceId(这样也兼容了公共图库)
@@ -629,8 +632,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         Picture oldPicture = this.getById(pictureId);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
 
+        // 不使用了，已经改为注解鉴权：@SaSpaceCheckPermission
         // 3.【校验权限，调用checkPictureAuth方法】图片存在了 -> 只有本人和管理员可以删除本张图片
-        checkPictureAuth(loginUser, oldPicture);
+        // checkPictureAuth(loginUser, oldPicture);
 
         // 开启事务
         // 更新空间的使用额度后 => 释放额度
@@ -705,8 +709,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         Picture oldPicture = this.getById(id);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
 
+        // 不使用了，已经改为注解鉴权：@SaSpaceCheckPermission
         // 4.【校验权限】只有本人和管理员可以编辑查到的图片信息
-        checkPictureAuth(loginUser, oldPicture);
+        // (loginUser, oldPicture);
           // 补充审核参数
         this.fillReviewParams(picture, loginUser);
 
@@ -859,8 +864,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         Picture picture = this.getById(pictureId);
         ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
 
+        // 不使用了，已经改为注解鉴权：@SaSpaceCheckPermission
         // 权限校验
-        checkPictureAuth(loginUser, picture);
+        // checkPictureAuth(loginUser, picture);
 
         // 创建扩图任务
         CreateOutPaintingTaskRequest createOutPaintingTaskRequest = new CreateOutPaintingTaskRequest();
