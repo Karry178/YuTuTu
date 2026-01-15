@@ -121,6 +121,20 @@
             <version>5.2.0</version>
         </dependency>
 
+        <!-- 引入原生的WebSocket协议依赖 -->
+        <!-- websocket -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
+        <!-- 高性能无锁队列 Disruptor -->
+        <dependency>
+            <groupId>com.lmax</groupId>
+            <artifactId>disruptor</artifactId>
+            <version>3.4.2</version>
+        </dependency>
+
         <!-- 引入jsoup库：目的是爬取网上图片 -->
         <dependency>
             <!-- jsoup HTML parser library @ https://jsoup.org/ -->
@@ -128,6 +142,7 @@
             <artifactId>jsoup</artifactId>
             <version>1.15.3</version>
         </dependency>
+
     </dependencies>
 
     <!-- 依赖管理 -->

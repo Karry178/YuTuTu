@@ -321,9 +321,7 @@ declare namespace API {
     rightOffset?: number
     topOffset?: number
     xScale?: number
-    xscale?: number
     yScale?: number
-    yscale?: number
   }
 
   type Picture = {

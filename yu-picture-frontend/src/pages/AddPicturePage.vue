@@ -10,11 +10,11 @@
     <a-tabs v-model:activeKey="uploadType">
       <a-tab-pane key="file" tab="文件上传">
         <!-- 图片文件上传组件 -->
-        <PictureUpload :picture="picture" :spaceId="spaceId" :onSuccess="onSuccess" />
+        <PictureUpload :picture="picture" :spaceId="Number(spaceId)" :onSuccess="onSuccess" />
       </a-tab-pane>
       <a-tab-pane key="url" tab="URL上传" force-render>
         <!-- URL图片上传组件 -->
-        <UrlPictureUpload :picture="picture" :spaceId="spaceId" :onSuccess="onSuccess" />
+        <UrlPictureUpload :picture="picture" :spaceId="Number(spaceId)" :onSuccess="onSuccess" />
       </a-tab-pane>
     </a-tabs>
     <!-- 图片编辑区域 -->
@@ -28,7 +28,8 @@
         ref="imageCropperRef"
         :image-url="picture?.url"
         :picture="picture"
-        :spaceId="spaceId"
+        :spaceId="Number(spaceId)"
+        :space="space"
         @onSuccess="onCropSuccess"
       />
 
@@ -99,6 +100,7 @@ import UrlPictureUpload from '@/components/UrlPictureUpload.vue'
 import ImageCropper from '@/components/ImageCropper.vue'
 import { EditOutlined, FullscreenOutlined } from '@ant-design/icons-vue'
 import ImageOutPainting from '@/components/ImageOutPainting.vue'
+import { getSpaceVoByIdUsingGet } from '@/api/spaceController.ts'
 
 const picture = ref<API.PictureVO>()
 const pictureForm = reactive<API.PictureEditRequest>({
@@ -231,6 +233,26 @@ const onImageOutPaintingSuccess = (newPicture: API.PictureVO) => {
   picture.value = newPicture
 }
 
+// 获取空间信息
+const space = ref<API.SpaceVO>()
+
+// 获取空间信息
+const fetchSpace = async () => {
+  // 获取到id
+  if (spaceId.value) {
+    const res = await getSpaceVoByIdUsingGet({
+      id: spaceId.value,
+    })
+    if (res.data.code === 0 && res.data.data) {
+      const data = res.data.data
+      space.value = data
+    }
+  }
+}
+
+onMounted(() => {
+  fetchSpace()
+})
 </script>
 
 <style scoped>

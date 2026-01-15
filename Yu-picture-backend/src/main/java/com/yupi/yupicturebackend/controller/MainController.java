@@ -12,8 +12,18 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/")
 public class MainController {
 
+    /**
+     * 健康检查
+     *
+     * @return
+     */
     @GetMapping(value = "/health", produces = "application/json")
     public BaseResponse<String> health() {
+        // 如果请求过多，但是想一次全给接收下来，并且及时清空线程内容，可以使用异步操作
+        new Thread(() -> {
+//            Thread.sleep(100000L);
+        });
+
         return ResultUtils.success("ok");
     }
 }

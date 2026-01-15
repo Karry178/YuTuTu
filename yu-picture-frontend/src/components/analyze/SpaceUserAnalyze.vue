@@ -1,7 +1,7 @@
 <template>
   <div class="space-user-analyze">
     <a-card title="空间图片用户上传分析">
-      <v-chart :option="options" style="height: 320px; max-width: 100%;" :loading="loading" />
+      <v-chart :option="options" style="height: 320px; max-width: 100%" :loading="loading" />
       <!-- 在图表右侧补充内容 -->
       <template #extra>
         <a-segmented v-model:value="timeDimension" :options="timeDimensionOptions" />
@@ -23,6 +23,7 @@ interface Props {
   queryAll?: boolean
   queryPublic?: boolean
   spaceId?: string | number
+  space?: API.SpaceVO
 }
 
 // 定义一些默认值
@@ -52,7 +53,7 @@ const timeDimensionOptions = [
 // 定义用户 Id 选项
 const userId = ref<string>()
 
-const doSearch = (value:string) => {
+const doSearch = (value: string) => {
   userId.value = value
 }
 
